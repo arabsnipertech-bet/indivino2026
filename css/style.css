@@ -621,3 +621,90 @@ input:focus {
   .wallet-card__logo img { width: 75px; }
   .panel { padding: 23px 18px; }
 }
+
+
+/* Step 2: autenticazione e portafoglio reale */
+button:disabled {
+  cursor: wait;
+  opacity: .68;
+  transform: none !important;
+}
+
+.form-message.is-success {
+  color: #155b3d;
+  background: #e7f6ee;
+  border: 1px solid #b9e2cc;
+}
+
+.demo-notice--error {
+  color: #8e1f2e;
+  background: #fdecef;
+  border-color: #f1bdc5;
+}
+
+.status-badge--blocked {
+  color: #8e1f2e;
+  background: #fdecef;
+}
+
+.secure-chip {
+  padding: 8px 12px;
+  color: var(--wine-800);
+  background: #f2e7e9;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+.qr-live {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-live img,
+.qr-live canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+.token-details {
+  margin-top: 18px;
+  padding: 12px 14px;
+  color: var(--muted);
+  background: #faf6f3;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: .82rem;
+}
+
+.token-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.token-details code {
+  display: block;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+  color: var(--wine-800);
+}
+
+.empty-state {
+  min-height: 120px;
+  padding: 24px;
+  color: var(--muted);
+  background: #faf7f5;
+  border: 1px dashed #d8ccce;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  text-align: center;
+}
+
+.empty-state strong {
+  color: var(--ink);
+}
