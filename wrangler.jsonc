@@ -1,6 +1,7 @@
 {
   "name": "indivino2026",
   "compatibility_date": "2026-08-04",
+  "workers_dev": true,
   "assets": {
     "directory": ".",
     "html_handling": "auto-trailing-slash"

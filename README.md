@@ -1,23 +1,14 @@
-# I Divini Digitali — Step 2
+# I Divini Digitali — Step 3 Cassa
 
-Versione collegata al progetto Supabase `indivino2026`.
+Versione con:
+- autenticazione cliente;
+- portafoglio e QR personale;
+- area cassa protetta;
+- scanner QR;
+- ricerca cliente;
+- ricarica atomica contanti/POS;
+- riepilogo giornaliero.
 
-Consulta `STEP2-INSTRUCTIONS.md` prima di caricare i file su GitHub.
+Prima di pubblicare, eseguire `sql/03_database_cassa.sql`.
 
-## Moduli attivi
-
-- Homepage
-- Registrazione
-- Login
-- Area cliente
-- Portafoglio con saldo reale
-- QR personale
-- Storico movimenti
-
-## Moduli predisposti
-
-- Cassa
-- Stand
-- Amministrazione
-
-Il saldo non può ancora essere ricaricato: il prossimo passaggio realizzerà il modulo cassa e la relativa funzione SQL atomica.
+Consultare `STEP3-CASSA-INSTRUCTIONS.md`.

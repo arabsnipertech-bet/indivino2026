@@ -1,4 +1,4 @@
-const CACHE_NAME = "indivino-step2-v3";
+const CACHE_NAME = "indivino-step3-cassa-v4";
 const STATIC_ASSETS = [
   "/",
   "/login",
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   "/js/app.js",
   "/js/auth.js",
   "/js/cliente.js",
+  "/js/cassa.js",
   "/js/config.js",
   "/js/supabase-client.js",
   "/images/logo-proloco-solofra.png",
@@ -43,8 +44,6 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  // Per le pagine HTML usiamo prima la rete, così gli aggiornamenti
-  // pubblicati su GitHub diventano visibili senza conservare vecchie versioni.
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
@@ -53,12 +52,10 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(async () => {
-          return (
-            (await caches.match(event.request)) ||
-            (await caches.match("/404.html"))
-          );
-        })
+        .catch(async () =>
+          (await caches.match(event.request)) ||
+          (await caches.match("/404.html"))
+        )
     );
     return;
   }

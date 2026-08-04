@@ -3,23 +3,257 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b1018">
+  <meta name="description" content="Area cassa I Divini Digitali - Indivino 2026">
+  <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/images/icon-192.png">
   <link rel="stylesheet" href="/css/style.css">
   <title>Area cassa | I Divini Digitali</title>
 </head>
-<body class="auth-page">
-  <main class="auth-layout">
-    <section class="auth-brand">
-      <a href="/" class="back-link">← Torna alla home</a>
-      <div class="auth-logos">
-        <img src="/images/logo-proloco-solofra.png" alt="Pro Loco Solofra">
-        <img src="/images/logo-indivino-2026.png" alt="Indivino 2026">
+<body class="dashboard-page cashier-page">
+  <header class="dashboard-header">
+    <a class="dashboard-brand" href="/">
+      <img src="/images/logo-indivino-2026.png" alt="Indivino 2026">
+      <span>I Divini Digitali</span>
+    </a>
+
+    <div class="cashier-header-actions">
+      <span class="operator-label">Cassa: <strong id="operator-name">…</strong></span>
+      <button class="button button--ghost button--small" id="logout-button">Esci</button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell cashier-shell">
+    <section class="welcome-row cashier-welcome">
+      <div>
+        <span class="eyebrow">Pannello operativo</span>
+        <h1>Area cassa</h1>
+        <p>Trova il cliente, controlla il saldo e carica i Divini.</p>
       </div>
-      <span class="eyebrow">Modulo cassa</span>
-      <h1>Ricariche in preparazione</h1>
-      <p>La pagina sarà attivata nel prossimo passaggio con ricerca cliente, scansione QR e caricamento del credito.</p>
-      <a class="button button--primary" href="/login">Torna all’accesso</a>
+      <span class="status-badge">Cassa attiva</span>
     </section>
+
+    <section class="cashier-summary" aria-label="Riepilogo giornaliero">
+      <article class="summary-card">
+        <span>Ricaricato oggi</span>
+        <strong id="summary-total">—</strong>
+      </article>
+      <article class="summary-card">
+        <span>Operazioni</span>
+        <strong id="summary-count">—</strong>
+      </article>
+      <article class="summary-card">
+        <span>Contanti</span>
+        <strong id="summary-cash">—</strong>
+      </article>
+      <article class="summary-card">
+        <span>POS</span>
+        <strong id="summary-pos">—</strong>
+      </article>
+    </section>
+
+    <section class="cashier-layout">
+      <div class="cashier-main">
+        <article class="panel customer-finder">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">1. Identifica il cliente</span>
+              <h2>Scansiona o cerca</h2>
+            </div>
+          </div>
+
+          <div class="finder-tabs" role="tablist" aria-label="Metodo di ricerca">
+            <button class="finder-tab is-active" type="button" data-mode="scan">Scansiona QR</button>
+            <button class="finder-tab" type="button" data-mode="search">Cerca cliente</button>
+          </div>
+
+          <section id="scan-panel" class="finder-panel">
+            <div class="scanner-frame">
+              <div id="qr-reader"></div>
+              <div id="scanner-placeholder" class="scanner-placeholder">
+                <strong>Fotocamera non ancora attiva</strong>
+                <span>Premi il pulsante e inquadra il QR del cliente.</span>
+              </div>
+            </div>
+
+            <div class="scanner-actions">
+              <button class="button button--primary" type="button" id="start-scanner">
+                Avvia fotocamera
+              </button>
+              <button class="button button--secondary is-hidden" type="button" id="stop-scanner">
+                Ferma fotocamera
+              </button>
+            </div>
+
+            <p class="field-help">
+              La fotocamera viene utilizzata soltanto durante la scansione.
+            </p>
+          </section>
+
+          <section id="search-panel" class="finder-panel is-hidden">
+            <form id="customer-search-form" class="search-form">
+              <label for="customer-search">Nome, cognome, email o codice QR</label>
+              <div class="search-control">
+                <input
+                  id="customer-search"
+                  name="query"
+                  type="search"
+                  minlength="2"
+                  autocomplete="off"
+                  placeholder="Es. Bruno Pirolo"
+                  required
+                >
+                <button class="button button--primary" type="submit">Cerca</button>
+              </div>
+            </form>
+          </section>
+
+          <div id="finder-message" class="form-message" aria-live="polite"></div>
+          <div id="customer-results" class="customer-results"></div>
+        </article>
+
+        <article class="panel recharge-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">2. Ricarica</span>
+              <h2>Carica il credito</h2>
+            </div>
+            <span id="selected-status" class="selection-chip">Nessun cliente</span>
+          </div>
+
+          <div id="selected-customer-empty" class="empty-state">
+            <strong>Seleziona prima un cliente</strong>
+            <span>Scansiona il QR oppure cerca per nome o email.</span>
+          </div>
+
+          <div id="selected-customer" class="selected-customer is-hidden">
+            <div class="selected-customer__identity">
+              <div class="customer-avatar" id="selected-initials">ID</div>
+              <div>
+                <strong id="selected-name">—</strong>
+                <span id="selected-email">—</span>
+              </div>
+            </div>
+
+            <div class="selected-customer__balance">
+              <span>Saldo attuale</span>
+              <strong id="selected-balance">—</strong>
+              <b id="selected-divini">— Divini</b>
+            </div>
+          </div>
+
+          <form id="recharge-form" class="recharge-form">
+            <fieldset id="recharge-fieldset" disabled>
+              <legend>Importo della ricarica</legend>
+
+              <div class="quick-amounts">
+                <button type="button" class="amount-button" data-amount="10">10 €</button>
+                <button type="button" class="amount-button" data-amount="20">20 €</button>
+                <button type="button" class="amount-button" data-amount="30">30 €</button>
+                <button type="button" class="amount-button" data-amount="40">40 €</button>
+                <button type="button" class="amount-button" data-amount="50">50 €</button>
+              </div>
+
+              <label for="custom-amount">Oppure inserisci un importo</label>
+              <div class="money-input">
+                <span>€</span>
+                <input
+                  id="custom-amount"
+                  name="amount"
+                  type="number"
+                  min="2"
+                  max="500"
+                  step="2"
+                  inputmode="numeric"
+                  placeholder="20"
+                  required
+                >
+              </div>
+              <p class="field-help">Importo minimo 2 €, massimo 500 €, sempre multiplo di 2 €.</p>
+
+              <div class="recharge-preview">
+                <span>Credito caricato</span>
+                <strong id="amount-preview">0,00 €</strong>
+                <b id="divini-preview">0 Divini</b>
+              </div>
+
+              <fieldset class="payment-methods">
+                <legend>Metodo di pagamento</legend>
+                <label class="payment-option">
+                  <input type="radio" name="payment_method" value="contanti" checked>
+                  <span><strong>Contanti</strong><small>Incasso alla cassa</small></span>
+                </label>
+                <label class="payment-option">
+                  <input type="radio" name="payment_method" value="pos">
+                  <span><strong>POS</strong><small>Pagamento con carta</small></span>
+                </label>
+              </fieldset>
+
+              <label for="recharge-note">Nota facoltativa</label>
+              <input
+                id="recharge-note"
+                name="note"
+                type="text"
+                maxlength="160"
+                placeholder="Es. postazione ingresso"
+              >
+
+              <div id="recharge-message" class="form-message" aria-live="polite"></div>
+
+              <button class="button button--primary button--full recharge-submit" type="submit">
+                Conferma ricarica
+              </button>
+            </fieldset>
+          </form>
+        </article>
+      </div>
+
+      <aside class="cashier-side">
+        <article class="panel receipt-panel is-hidden" id="receipt-panel">
+          <span class="eyebrow">Operazione completata</span>
+          <h2>Ricarica riuscita</h2>
+          <div class="receipt-success-mark">✓</div>
+
+          <dl class="receipt-details">
+            <div><dt>Cliente</dt><dd id="receipt-customer">—</dd></div>
+            <div><dt>Importo</dt><dd id="receipt-amount">—</dd></div>
+            <div><dt>Metodo</dt><dd id="receipt-method">—</dd></div>
+            <div><dt>Saldo precedente</dt><dd id="receipt-before">—</dd></div>
+            <div><dt>Nuovo saldo</dt><dd id="receipt-after">—</dd></div>
+            <div><dt>Codice operazione</dt><dd><code id="receipt-id">—</code></dd></div>
+          </dl>
+
+          <button class="button button--secondary button--full" type="button" id="new-operation">
+            Nuova operazione
+          </button>
+        </article>
+
+        <article class="panel recent-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">Controllo</span>
+              <h2>Ultime ricariche</h2>
+            </div>
+            <button class="icon-button" type="button" id="refresh-recharges" aria-label="Aggiorna ricariche">↻</button>
+          </div>
+
+          <div id="recent-recharges" class="recent-recharges">
+            <div class="empty-state">
+              <strong>Caricamento…</strong>
+            </div>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <div id="page-message" class="demo-notice">
+      Ogni ricarica viene registrata con data, ora, operatore, metodo di pagamento e saldo prima/dopo.
+    </div>
   </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script type="module" src="/js/cassa.js"></script>
 </body>
 </html>
