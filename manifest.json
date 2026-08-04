@@ -2,7 +2,7 @@
   "name": "I Divini Digitali - Indivino 2026",
   "short_name": "I Divini",
   "description": "Portafoglio digitale ufficiale di Indivino 2026",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#25090f",
   "theme_color": "#3b1018",
@@ -17,5 +17,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "scope": "/"
 }

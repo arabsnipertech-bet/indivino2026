@@ -4,6 +4,9 @@
 .github/**
 README.md
 README-FIX.md
+STEP2-INSTRUCTIONS.md
+sql
+sql/**
 .gitignore
 .assetsignore
 wrangler.jsonc
