@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b1018">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="images/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+  <title>Il mio portafoglio | I Divini Digitali</title>
+</head>
+<body class="dashboard-page">
+  <header class="dashboard-header">
+    <a class="dashboard-brand" href="index.html">
+      <img src="images/logo-indivino-2026.png" alt="Indivino 2026">
+      <span>I Divini Digitali</span>
+    </a>
+    <button class="button button--ghost button--small" id="logout-button">Esci</button>
+  </header>
+
+  <main class="dashboard-shell">
+    <section class="welcome-row">
+      <div>
+        <span class="eyebrow">Portafoglio personale</span>
+        <h1>Ciao, Bruno</h1>
+      </div>
+      <span class="status-badge">Account attivo</span>
+    </section>
+
+    <section class="wallet-card">
+      <div>
+        <p>Saldo disponibile</p>
+        <strong>20,00 €</strong>
+        <span>10 Divini</span>
+      </div>
+      <div class="wallet-card__logo">
+        <img src="images/logo-indivino-2026.png" alt="">
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel qr-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Pagamento</span>
+            <h2>Il tuo QR</h2>
+          </div>
+          <span class="demo-chip">Demo</span>
+        </div>
+        <div class="qr-placeholder qr-placeholder--large">
+          <div class="qr-grid"></div>
+        </div>
+        <p>Mostralo all’operatore dello stand. Il QR definitivo sarà generato dal database.</p>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Attività</span>
+            <h2>Ultimi movimenti</h2>
+          </div>
+        </div>
+        <div class="movement-list">
+          <div class="movement">
+            <div><strong>Ricarica cassa</strong><span>Oggi, 19:12</span></div>
+            <b class="positive">+ 20,00 €</b>
+          </div>
+          <div class="movement">
+            <div><strong>Stand Cantina 2</strong><span>Oggi, 20:04</span></div>
+            <b>− 4,00 €</b>
+          </div>
+          <div class="movement">
+            <div><strong>Stand Cantina 5</strong><span>Oggi, 21:18</span></div>
+            <b>− 2,00 €</b>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="demo-notice">
+      Questa è una schermata grafica dimostrativa. Saldo e movimenti reali saranno collegati a Supabase nel passaggio successivo.
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
