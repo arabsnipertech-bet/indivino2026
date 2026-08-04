@@ -1,0 +1,10 @@
+.git
+.git/**
+.github
+.github/**
+README.md
+README-FIX.md
+.gitignore
+.assetsignore
+wrangler.jsonc
+js/config.example.js
