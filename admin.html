@@ -3,23 +3,311 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b1018">
+  <meta name="description" content="Amministrazione I Divini Digitali - Indivino 2026">
+  <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/images/icon-192.png">
   <link rel="stylesheet" href="/css/style.css">
   <title>Amministrazione | I Divini Digitali</title>
 </head>
-<body class="auth-page">
-  <main class="auth-layout">
-    <section class="auth-brand">
-      <a href="/" class="back-link">← Torna alla home</a>
-      <div class="auth-logos">
-        <img src="/images/logo-proloco-solofra.png" alt="Pro Loco Solofra">
-        <img src="/images/logo-indivino-2026.png" alt="Indivino 2026">
+<body class="dashboard-page admin-page">
+  <header class="dashboard-header">
+    <a class="dashboard-brand" href="/">
+      <img src="/images/logo-indivino-2026.png" alt="Indivino 2026">
+      <span>I Divini Digitali</span>
+    </a>
+
+    <div class="admin-header-actions">
+      <a class="button button--ghost button--small" href="/cassa">
+        Apri Cassa 01
+      </a>
+      <span class="operator-label">
+        Admin: <strong id="admin-name">…</strong>
+      </span>
+      <button class="button button--ghost button--small" id="logout-button">
+        Esci
+      </button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell admin-shell">
+    <section class="welcome-row admin-welcome">
+      <div>
+        <span class="eyebrow">Controllo centrale</span>
+        <h1>Amministrazione Indivino</h1>
+        <p>
+          Ricariche, consumi, credito residuo, casse, stand e operatori in un solo pannello.
+        </p>
       </div>
-      <span class="eyebrow">Pannello amministratore</span>
-      <h1>Controllo in preparazione</h1>
-      <p>La dashboard amministrativa verrà costruita dopo aver collaudato portafogli, ricariche e pagamenti.</p>
-      <a class="button button--primary" href="/login">Torna all’accesso</a>
+      <span class="status-badge">Amministratore attivo</span>
     </section>
+
+    <section class="panel admin-filter-panel">
+      <form id="period-form" class="admin-period-form">
+        <div>
+          <label for="date-from">Dal giorno</label>
+          <input id="date-from" name="from" type="date" required>
+        </div>
+        <div>
+          <label for="date-to">Al giorno</label>
+          <input id="date-to" name="to" type="date" required>
+        </div>
+        <button class="button button--primary" type="submit">Aggiorna dati</button>
+        <button class="button button--secondary" type="button" id="today-button">Oggi</button>
+        <button class="button button--secondary" type="button" id="refresh-admin">↻ Aggiorna</button>
+      </form>
+      <div id="admin-message" class="form-message" aria-live="polite"></div>
+    </section>
+
+    <section class="admin-overview" aria-label="Riepilogo generale">
+      <article class="admin-stat-card">
+        <span>Clienti attivi</span>
+        <strong id="total-customers">—</strong>
+        <small>Portafogli utilizzabili</small>
+      </article>
+      <article class="admin-stat-card">
+        <span>Credito caricato</span>
+        <strong id="total-loaded">—</strong>
+        <small id="recharge-count">— ricariche</small>
+      </article>
+      <article class="admin-stat-card">
+        <span>Credito speso</span>
+        <strong id="total-spent">—</strong>
+        <small id="payment-count">— pagamenti</small>
+      </article>
+      <article class="admin-stat-card">
+        <span>Credito residuo</span>
+        <strong id="total-remaining">—</strong>
+        <small id="remaining-divini">— Divini</small>
+      </article>
+      <article class="admin-stat-card">
+        <span>Contanti</span>
+        <strong id="total-cash">—</strong>
+        <small>Ricariche alla cassa</small>
+      </article>
+      <article class="admin-stat-card">
+        <span>POS</span>
+        <strong id="total-pos">—</strong>
+        <small>Ricariche alla cassa</small>
+      </article>
+    </section>
+
+    <section class="admin-grid admin-grid--rankings">
+      <article class="panel admin-ranking-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Ricariche</span>
+            <h2>Risultati delle casse</h2>
+          </div>
+          <span class="admin-count-chip">20 postazioni</span>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Cassa</th>
+                <th>Operazioni</th>
+                <th>Contanti</th>
+                <th>POS</th>
+                <th>Totale</th>
+                <th>Ticket medio</th>
+              </tr>
+            </thead>
+            <tbody id="cashier-ranking">
+              <tr><td colspan="6">Caricamento…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel admin-ranking-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Consumi</span>
+            <h2>Risultati degli stand</h2>
+          </div>
+          <span class="admin-count-chip">15 postazioni</span>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Stand</th>
+                <th>Pagamenti</th>
+                <th>Clienti</th>
+                <th>Divini</th>
+                <th>Totale</th>
+                <th>Ticket medio</th>
+              </tr>
+            </thead>
+            <tbody id="stand-ranking">
+              <tr><td colspan="6">Caricamento…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section class="admin-grid admin-grid--activity">
+      <article class="panel admin-hourly-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Andamento</span>
+            <h2>Attività per fascia oraria</h2>
+          </div>
+        </div>
+
+        <div class="hourly-legend">
+          <span><i class="hourly-dot hourly-dot--loaded"></i> Ricaricato</span>
+          <span><i class="hourly-dot hourly-dot--spent"></i> Speso</span>
+        </div>
+
+        <div id="hourly-chart" class="hourly-chart">
+          <div class="empty-state"><strong>Caricamento…</strong></div>
+        </div>
+      </article>
+
+      <article class="panel admin-balance-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Quadratura</span>
+            <h2>Controllo del credito</h2>
+          </div>
+        </div>
+
+        <dl class="admin-balance-list">
+          <div><dt>Totale caricato</dt><dd id="balance-loaded">—</dd></div>
+          <div><dt>Totale consumato</dt><dd id="balance-spent">—</dd></div>
+          <div><dt>Saldo presente nei portafogli</dt><dd id="balance-wallets">—</dd></div>
+          <div class="admin-balance-list__result">
+            <dt>Differenza di controllo</dt><dd id="balance-difference">—</dd>
+          </div>
+        </dl>
+
+        <p class="field-help">
+          La differenza può includere movimenti effettuati fuori dal periodo selezionato. La quadratura completa va verificata sull’intero evento.
+        </p>
+      </article>
+    </section>
+
+    <section class="panel admin-staff-panel">
+      <div class="panel-heading admin-staff-heading">
+        <div>
+          <span class="eyebrow">Personale operativo</span>
+          <h2>Gestione casse e stand</h2>
+          <p>
+            Cassa 01 è associata all’amministratore. Il generatore crea Cassa 02–20 e Stand 01–15 già confermati.
+          </p>
+        </div>
+        <div class="admin-staff-actions">
+          <button class="button button--primary" type="button" id="generate-staff">
+            Genera profili mancanti
+          </button>
+          <button class="button button--secondary" type="button" id="download-credentials" disabled>
+            Scarica credenziali
+          </button>
+        </div>
+      </div>
+
+      <div class="staff-summary">
+        <article>
+          <span>Casse configurate</span>
+          <strong id="configured-cashiers">— / 20</strong>
+        </article>
+        <article>
+          <span>Stand configurati</span>
+          <strong id="configured-stands">— / 15</strong>
+        </article>
+        <article>
+          <span>Operatori attivi</span>
+          <strong id="active-staff">—</strong>
+        </article>
+        <article>
+          <span>Amministratori</span>
+          <strong id="active-admins">—</strong>
+        </article>
+      </div>
+
+      <div id="staff-message" class="form-message" aria-live="polite"></div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table admin-staff-table">
+          <thead>
+            <tr>
+              <th>Operatore</th>
+              <th>Accesso</th>
+              <th>Ruolo</th>
+              <th>Postazione</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="staff-list">
+            <tr><td colspan="6">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel admin-transactions-panel">
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">Registro completo</span>
+          <h2>Ultimi movimenti</h2>
+        </div>
+        <button class="button button--secondary button--small" type="button" id="export-transactions">
+          Esporta CSV
+        </button>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Data e ora</th>
+              <th>Tipo</th>
+              <th>Cliente</th>
+              <th>Postazione</th>
+              <th>Operatore</th>
+              <th>Metodo</th>
+              <th>Importo</th>
+              <th>Saldo dopo</th>
+            </tr>
+          </thead>
+          <tbody id="transaction-list">
+            <tr><td colspan="8">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div id="page-message" class="demo-notice">
+      Tutte le statistiche derivano dalle transazioni registrate nel database. Nessun saldo viene calcolato soltanto nel browser.
+    </div>
   </main>
+
+  <div class="payment-modal is-hidden" id="credentials-modal" role="dialog" aria-modal="true" aria-labelledby="credentials-title">
+    <div class="payment-modal__backdrop" data-close-credentials></div>
+    <section class="payment-modal__card admin-credentials-card">
+      <span class="eyebrow">Credenziali temporanee</span>
+      <h2 id="credentials-title">Profili creati</h2>
+      <p>
+        Le password vengono mostrate soltanto adesso. Scarica il CSV e conservalo in luogo sicuro.
+      </p>
+      <div id="credentials-preview" class="credentials-preview"></div>
+      <div class="modal-actions">
+        <button class="button button--secondary" type="button" data-close-credentials>Chiudi</button>
+        <button class="button button--primary" type="button" id="download-credentials-modal">
+          Scarica CSV
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="/js/app.js"></script>
+  <script type="module" src="/js/admin.js"></script>
 </body>
 </html>

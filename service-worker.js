@@ -1,4 +1,4 @@
-const CACHE_NAME = "indivino-images-v5";
+const CACHE_NAME = "indivino-images-v6";
 const IMAGE_ASSETS = [
   "/images/logo-proloco-solofra.png",
   "/images/logo-indivino-2026.png",
@@ -34,8 +34,6 @@ self.addEventListener("fetch", (event) => {
     url.origin === self.location.origin &&
     event.request.destination === "image";
 
-  // HTML, CSS e JavaScript non vengono intercettati:
-  // il browser riceve sempre la versione pubblicata più recente.
   if (!isLocalImage) return;
 
   event.respondWith(

@@ -1,16 +1,23 @@
-# I Divini Digitali — Step 4 Stand
+# I Divini Digitali — Step 5 Amministrazione
 
-Versione completa fino al pagamento agli stand:
+Versione completa fino alla gestione centrale:
 
 - cliente;
 - cassa;
 - stand;
-- portafoglio;
-- QR;
-- ricariche;
-- pagamenti atomici;
-- riepiloghi operativi.
+- amministrazione;
+- 20 postazioni cassa;
+- 15 postazioni stand;
+- statistiche;
+- operatori;
+- esportazioni CSV.
 
-Prima della pubblicazione eseguire `sql/05_database_stand.sql`.
+Prima della pubblicazione eseguire:
 
-Consultare `STEP4-STAND-INSTRUCTIONS.md`.
+`sql/08_database_admin.sql`
+
+Poi pubblicare la funzione:
+
+`supabase/functions/admin-staff/index.ts`
+
+Consultare `STEP5-ADMIN-INSTRUCTIONS.md`.

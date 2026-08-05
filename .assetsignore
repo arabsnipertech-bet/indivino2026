@@ -7,8 +7,11 @@ README-FIX.md
 STEP2-INSTRUCTIONS.md
 STEP3-CASSA-INSTRUCTIONS.md
 STEP4-STAND-INSTRUCTIONS.md
+STEP5-ADMIN-INSTRUCTIONS.md
 sql
 sql/**
+supabase
+supabase/**
 .gitignore
 .assetsignore
 wrangler.jsonc
