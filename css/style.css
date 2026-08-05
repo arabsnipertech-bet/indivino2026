@@ -1303,3 +1303,387 @@ button:disabled {
     min-height: 285px;
   }
 }
+
+
+/* ============================================================
+   STEP 4 — AREA STAND
+   ============================================================ */
+
+.stand-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stand-welcome p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.stand-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stand-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, .7fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.stand-main,
+.stand-side {
+  display: grid;
+  gap: 24px;
+}
+
+.stand-scanner-frame {
+  margin-top: 24px;
+}
+
+.manual-code-box {
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: #faf6f3;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.manual-code-box summary {
+  color: var(--wine-800);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.manual-code-box form {
+  margin-top: 16px;
+}
+
+.manual-code-box label {
+  margin-top: 0;
+}
+
+.stand-selected-customer {
+  margin: 24px 0;
+  padding: 18px;
+  background: linear-gradient(135deg, #fff, #faf4f1);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.stand-payment-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.stand-payment-form fieldset:disabled {
+  opacity: .48;
+}
+
+.stand-payment-form legend {
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+.divini-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 9px;
+}
+
+.divini-button {
+  min-height: 76px;
+  padding: 10px;
+  color: var(--wine-800);
+  background: #f8efed;
+  border: 1px solid #e5d5d8;
+  border-radius: 13px;
+  cursor: pointer;
+}
+
+.divini-button strong,
+.divini-button span {
+  display: block;
+}
+
+.divini-button strong {
+  font-size: 1.6rem;
+}
+
+.divini-button span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.divini-button.is-active {
+  color: white;
+  background: var(--wine-800);
+  border-color: var(--wine-800);
+}
+
+.divini-button.is-active span {
+  color: rgba(255,255,255,.72);
+}
+
+.divini-input {
+  position: relative;
+}
+
+.divini-input input {
+  padding-right: 78px;
+}
+
+.divini-input span {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.stand-payment-preview {
+  margin: 18px 0;
+  padding: 18px;
+  color: white;
+  background: linear-gradient(135deg, var(--wine-950), var(--wine-700));
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.stand-payment-preview > div:last-child {
+  padding-left: 18px;
+  border-left: 1px solid rgba(255,255,255,.18);
+}
+
+.stand-payment-preview span,
+.stand-payment-preview strong,
+.stand-payment-preview b {
+  display: block;
+}
+
+.stand-payment-preview span {
+  color: rgba(255,255,255,.62);
+  font-size: .82rem;
+}
+
+.stand-payment-preview strong {
+  margin-top: 4px;
+  font-size: 2rem;
+}
+
+.stand-payment-preview b {
+  margin-top: 3px;
+  color: var(--gold);
+}
+
+.balance-warning {
+  margin: 0 0 18px;
+  padding: 13px 15px;
+  color: #8e1f2e;
+  background: #fdecef;
+  border: 1px solid #f1bdc5;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.stand-receipt-panel {
+  text-align: center;
+  border-color: #bfe2ce;
+}
+
+.payment-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.payment-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(21, 7, 10, .76);
+  backdrop-filter: blur(5px);
+}
+
+.payment-modal__card {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 36px);
+  padding: clamp(24px, 5vw, 38px);
+  background: white;
+  border-radius: 25px;
+  box-shadow: 0 30px 100px rgba(0,0,0,.35);
+  overflow-y: auto;
+}
+
+.payment-modal__card h2 {
+  margin-bottom: 22px;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+}
+
+.modal-open {
+  overflow: hidden;
+}
+
+.modal-customer {
+  padding: 15px;
+  background: #faf6f3;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.modal-customer strong,
+.modal-customer span {
+  display: block;
+}
+
+.modal-customer span {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.modal-amount {
+  margin: 18px 0;
+  padding: 20px;
+  color: white;
+  background: linear-gradient(135deg, var(--wine-950), var(--wine-700));
+  border-radius: 17px;
+  text-align: center;
+}
+
+.modal-amount span,
+.modal-amount strong,
+.modal-amount b {
+  display: block;
+}
+
+.modal-amount span {
+  color: rgba(255,255,255,.62);
+}
+
+.modal-amount strong {
+  margin-top: 5px;
+  font-size: 2.7rem;
+}
+
+.modal-amount b {
+  color: var(--gold);
+}
+
+.modal-balances {
+  margin: 0;
+}
+
+.modal-balances div {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.modal-balances dt {
+  color: var(--muted);
+}
+
+.modal-balances dd {
+  margin: 0;
+  font-weight: 800;
+}
+
+.modal-warning {
+  margin: 18px 0;
+  padding: 13px 15px;
+  color: #5f4f1c;
+  background: #fff4cf;
+  border: 1px solid #efdfa7;
+  border-radius: 12px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media (max-width: 980px) {
+  .stand-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stand-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .stand-side {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .stand-header-actions {
+    gap: 8px;
+  }
+
+  .stand-header-actions .operator-label {
+    display: none;
+  }
+
+  .stand-summary {
+    gap: 10px;
+  }
+
+  .stand-side {
+    grid-template-columns: 1fr;
+  }
+
+  .divini-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .stand-selected-customer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .stand-selected-customer .selected-customer__balance {
+    width: 100%;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    text-align: left;
+  }
+
+  .stand-payment-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .stand-payment-preview > div:last-child {
+    padding: 16px 0 0;
+    border-top: 1px solid rgba(255,255,255,.18);
+    border-left: 0;
+  }
+
+  .modal-actions {
+    grid-template-columns: 1fr;
+  }
+}
