@@ -2,6 +2,8 @@ import { supabaseClient } from "./supabase-client.js";
 import { APP_CONFIG } from "./config.js";
 
 const operatorName = document.querySelector("#operator-name");
+const cashierStationName = document.querySelector("#cashier-station-name");
+const cashierCode = document.querySelector("#cashier-code");
 const logoutButton = document.querySelector("#logout-button");
 const pageMessage = document.querySelector("#page-message");
 
@@ -162,7 +164,15 @@ async function requireCashierSession() {
     .filter(Boolean)
     .join(" ");
 
-  return { session, profile };
+  const { data: cashierContext, error: contextError } =
+    await supabaseClient.rpc("cassa_get_context");
+
+  if (contextError) throw contextError;
+
+  cashierStationName.textContent = cashierContext.cashier_name;
+  cashierCode.textContent = cashierContext.cashier_code;
+
+  return { session, profile, cashierContext };
 }
 
 function switchFinderMode(mode) {
