@@ -36,13 +36,21 @@
         <span class="eyebrow">Controllo centrale</span>
         <h1>Amministrazione Indivino</h1>
         <p>
-          Ricariche, consumi, credito residuo, casse, stand e operatori in un solo pannello.
+          Ricariche, consumi, clienti, badge, casse, stand e operatori.
         </p>
       </div>
       <span class="status-badge">Amministratore attivo</span>
     </section>
 
-    <section class="panel admin-filter-panel">
+    <nav class="admin-section-nav" aria-label="Sezioni amministrazione">
+      <a href="#riepilogo">Riepilogo</a>
+      <a href="#postazioni">Casse e stand</a>
+      <a href="#clienti">Clienti e badge</a>
+      <a href="#operatori">Operatori</a>
+      <a href="#movimenti">Movimenti</a>
+    </nav>
+
+    <section class="panel admin-filter-panel" id="riepilogo">
       <form id="period-form" class="admin-period-form">
         <div>
           <label for="date-from">Dal giorno</label>
@@ -185,20 +193,105 @@
             <dt>Differenza di controllo</dt><dd id="balance-difference">—</dd>
           </div>
         </dl>
-
-        <p class="field-help">
-          La differenza può includere movimenti effettuati fuori dal periodo selezionato. La quadratura completa va verificata sull’intero evento.
-        </p>
       </article>
     </section>
 
-    <section class="panel admin-staff-panel">
+    <section class="panel admin-positions-panel" id="postazioni">
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">Configurazione</span>
+          <h2>Nomi e responsabili delle postazioni</h2>
+          <p>
+            I codici CASSA01–20 e STAND01–15 restano fissi. Nome pubblico e responsabile possono essere modificati.
+          </p>
+        </div>
+      </div>
+
+      <div class="position-filter-tabs">
+        <button class="position-filter is-active" type="button" data-position-filter="all">Tutte</button>
+        <button class="position-filter" type="button" data-position-filter="cassa">20 casse</button>
+        <button class="position-filter" type="button" data-position-filter="stand">15 stand</button>
+      </div>
+
+      <div id="positions-message" class="form-message" aria-live="polite"></div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Codice</th>
+              <th>Nome visualizzato</th>
+              <th>Responsabile</th>
+              <th>Tipo</th>
+              <th>Stato</th>
+              <th>Azione</th>
+            </tr>
+          </thead>
+          <tbody id="position-list">
+            <tr><td colspan="6">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel admin-customers-panel" id="clienti">
+      <div class="panel-heading admin-customers-heading">
+        <div>
+          <span class="eyebrow">Anagrafiche e badge</span>
+          <h2>Clienti</h2>
+          <p>
+            Gli omonimi sono ammessi: ogni portafoglio riceve un QR UUID e un codice badge univoci. La stessa email non può essere usata due volte.
+          </p>
+        </div>
+        <button class="button button--primary" type="button" id="create-customer">
+          Crea cliente / badge
+        </button>
+      </div>
+
+      <form id="customer-search-form" class="admin-customer-search">
+        <label for="customer-query">Cerca nome, cognome, email, codice badge o QR</label>
+        <div class="search-control">
+          <input
+            id="customer-query"
+            name="query"
+            type="search"
+            autocomplete="off"
+            placeholder="Es. Bruno, IV26-..., email o UUID"
+          >
+          <button class="button button--primary" type="submit">Cerca</button>
+          <button class="button button--secondary" type="button" id="clear-customer-search">Azzera</button>
+        </div>
+      </form>
+
+      <div id="customers-message" class="form-message" aria-live="polite"></div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table admin-customers-table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Accesso / contatto</th>
+              <th>Saldo</th>
+              <th>Badge</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="customer-list">
+            <tr><td colspan="7">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel admin-staff-panel" id="operatori">
       <div class="panel-heading admin-staff-heading">
         <div>
           <span class="eyebrow">Personale operativo</span>
           <h2>Gestione casse e stand</h2>
           <p>
-            Cassa 01 è associata all’amministratore. Il generatore crea Cassa 02–20 e Stand 01–15 già confermati.
+            Cassa 01 è associata all’amministratore. Gli altri profili vengono creati uno alla volta con avanzamento visibile.
           </p>
         </div>
         <div class="admin-staff-actions">
@@ -230,6 +323,14 @@
         </article>
       </div>
 
+      <div id="staff-progress" class="staff-progress is-hidden">
+        <div>
+          <span id="staff-progress-label">Preparazione…</span>
+          <strong id="staff-progress-count">0 / 34</strong>
+        </div>
+        <progress id="staff-progress-bar" value="0" max="34"></progress>
+      </div>
+
       <div id="staff-message" class="form-message" aria-live="polite"></div>
 
       <div class="admin-table-wrap">
@@ -251,7 +352,7 @@
       </div>
     </section>
 
-    <section class="panel admin-transactions-panel">
+    <section class="panel admin-transactions-panel" id="movimenti">
       <div class="panel-heading">
         <div>
           <span class="eyebrow">Registro completo</span>
@@ -284,9 +385,117 @@
     </section>
 
     <div id="page-message" class="demo-notice">
-      Tutte le statistiche derivano dalle transazioni registrate nel database. Nessun saldo viene calcolato soltanto nel browser.
+      Le password esistenti non possono essere lette: possono soltanto essere sostituite con una nuova password temporanea.
     </div>
   </main>
+
+  <div class="payment-modal is-hidden" id="position-modal" role="dialog" aria-modal="true" aria-labelledby="position-modal-title">
+    <div class="payment-modal__backdrop" data-close-position></div>
+    <section class="payment-modal__card">
+      <span class="eyebrow">Configurazione postazione</span>
+      <h2 id="position-modal-title">Modifica postazione</h2>
+
+      <form id="position-form">
+        <input type="hidden" id="position-type" name="type">
+        <input type="hidden" id="position-code" name="code">
+
+        <label for="position-code-view">Codice fisso</label>
+        <input id="position-code-view" type="text" disabled>
+
+        <label for="position-name">Nome visualizzato</label>
+        <input id="position-name" name="name" type="text" maxlength="100" required>
+
+        <label for="position-responsible">Responsabile</label>
+        <input
+          id="position-responsible"
+          name="responsible_name"
+          type="text"
+          maxlength="120"
+          placeholder="Es. Mario Rossi"
+        >
+
+        <div id="position-modal-message" class="form-message" aria-live="polite"></div>
+
+        <div class="modal-actions">
+          <button class="button button--secondary" type="button" data-close-position>Annulla</button>
+          <button class="button button--primary" type="submit">Salva modifica</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="payment-modal is-hidden" id="customer-modal" role="dialog" aria-modal="true" aria-labelledby="customer-modal-title">
+    <div class="payment-modal__backdrop" data-close-customer></div>
+    <section class="payment-modal__card">
+      <span class="eyebrow">Nuovo portafoglio</span>
+      <h2 id="customer-modal-title">Crea cliente o badge</h2>
+
+      <form id="create-customer-form">
+        <div class="form-row">
+          <div>
+            <label for="new-customer-first-name">Nome</label>
+            <input id="new-customer-first-name" name="first_name" type="text" maxlength="80" required>
+          </div>
+          <div>
+            <label for="new-customer-last-name">Cognome</label>
+            <input id="new-customer-last-name" name="last_name" type="text" maxlength="80" required>
+          </div>
+        </div>
+
+        <label for="new-customer-email">Email facoltativa</label>
+        <input
+          id="new-customer-email"
+          name="email"
+          type="email"
+          placeholder="Lascia vuoto per un badge senza registrazione"
+        >
+        <p class="field-help">
+          Con email: viene creato anche un accesso già confermato. Senza email: viene creato un portafoglio badge utilizzabile con il QR.
+        </p>
+
+        <div id="customer-modal-message" class="form-message" aria-live="polite"></div>
+
+        <div class="modal-actions">
+          <button class="button button--secondary" type="button" data-close-customer>Annulla</button>
+          <button class="button button--primary" type="submit">Crea e genera QR</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="payment-modal is-hidden" id="badge-modal" role="dialog" aria-modal="true" aria-labelledby="badge-modal-title">
+    <div class="payment-modal__backdrop" data-close-badge></div>
+    <section class="payment-modal__card admin-badge-card">
+      <span class="eyebrow">Badge cliente</span>
+      <h2 id="badge-modal-title">QR personale</h2>
+
+      <article class="printable-badge" id="printable-badge">
+        <div class="printable-badge__header">
+          <img src="/images/logo-indivino-2026.png" alt="">
+          <div>
+            <strong>INDIVINO 2026</strong>
+            <span>I Divini Digitali</span>
+          </div>
+        </div>
+        <h3 id="badge-customer-name">—</h3>
+        <div id="badge-qr" class="badge-qr"></div>
+        <strong id="badge-code">—</strong>
+        <small>Mostrare questo QR agli stand. In caso di smarrimento rivolgersi alla cassa.</small>
+      </article>
+
+      <dl class="receipt-details">
+        <div><dt>Tipo profilo</dt><dd id="badge-source">—</dd></div>
+        <div><dt>Email accesso</dt><dd id="badge-login-email">—</dd></div>
+        <div><dt>Password temporanea</dt><dd><code id="badge-password">Non disponibile</code></dd></div>
+        <div><dt>Codice QR</dt><dd><code id="badge-token">—</code></dd></div>
+      </dl>
+
+      <div class="modal-actions">
+        <button class="button button--secondary" type="button" data-close-badge>Chiudi</button>
+        <button class="button button--primary" type="button" id="print-badge">Stampa badge</button>
+      </div>
+    </section>
+  </div>
 
   <div class="payment-modal is-hidden" id="credentials-modal" role="dialog" aria-modal="true" aria-labelledby="credentials-title">
     <div class="payment-modal__backdrop" data-close-credentials></div>
@@ -294,7 +503,7 @@
       <span class="eyebrow">Credenziali temporanee</span>
       <h2 id="credentials-title">Profili creati</h2>
       <p>
-        Le password vengono mostrate soltanto adesso. Scarica il CSV e conservalo in luogo sicuro.
+        Le password vengono mostrate soltanto al momento della creazione o del reset.
       </p>
       <div id="credentials-preview" class="credentials-preview"></div>
       <div class="modal-actions">
@@ -307,6 +516,7 @@
   </div>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/js/app.js"></script>
   <script type="module" src="/js/admin.js"></script>
 </body>

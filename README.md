@@ -1,23 +1,21 @@
-# I Divini Digitali — Step 5 Amministrazione
+# I Divini Digitali — Step 6
 
-Versione completa fino alla gestione centrale:
+Amministrazione avanzata:
 
-- cliente;
-- cassa;
-- stand;
-- amministrazione;
-- 20 postazioni cassa;
-- 15 postazioni stand;
-- statistiche;
-- operatori;
-- esportazioni CSV.
+- 20 casse e 15 stand rinominabili;
+- responsabili;
+- clienti;
+- badge;
+- QR;
+- stampa;
+- creazione senza email;
+- recupero tramite reset password;
+- generazione operatori robusta.
 
-Prima della pubblicazione eseguire:
+Eseguire:
 
-`sql/08_database_admin.sql`
+`sql/09_positions_customers_badges.sql`
 
-Poi pubblicare la funzione:
+Poi sostituire la funzione:
 
 `supabase/functions/admin-staff/index.ts`
-
-Consultare `STEP5-ADMIN-INSTRUCTIONS.md`.

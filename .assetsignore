@@ -16,3 +16,5 @@ supabase/**
 .assetsignore
 wrangler.jsonc
 js/config.example.js
+
+STEP6-ADMIN-CLIENTI-INSTRUCTIONS.md
