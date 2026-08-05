@@ -2163,3 +2163,214 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+/* ============================================================
+   STEP 6 — POSTAZIONI, CLIENTI E BADGE
+   ============================================================ */
+
+.admin-section-nav {
+  position: sticky;
+  top: 74px;
+  z-index: 20;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: rgba(249, 245, 242, .94);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.admin-section-nav a {
+  padding: 9px 12px;
+  color: var(--wine-800);
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: .82rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-positions-panel,
+.admin-customers-panel {
+  margin-bottom: 22px;
+  scroll-margin-top: 150px;
+}
+
+.admin-positions-panel .panel-heading p,
+.admin-customers-heading p {
+  max-width: 850px;
+  margin: 7px 0 0;
+  color: var(--muted);
+}
+
+.position-filter-tabs {
+  margin-top: 20px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.position-filter {
+  padding: 9px 13px;
+  color: var(--muted);
+  background: #f7efed;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.position-filter.is-active {
+  color: white;
+  background: var(--wine-800);
+  border-color: var(--wine-800);
+}
+
+.admin-customers-heading {
+  align-items: flex-start;
+}
+
+.admin-customer-search {
+  margin-top: 22px;
+}
+
+.admin-customer-search > label {
+  margin-top: 0;
+}
+
+.admin-customers-table {
+  min-width: 1120px;
+}
+
+.staff-progress {
+  margin: 18px 0;
+  padding: 15px;
+  background: #faf5f2;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.staff-progress > div {
+  margin-bottom: 9px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.staff-progress progress {
+  width: 100%;
+  height: 13px;
+  accent-color: var(--wine-800);
+}
+
+.admin-badge-card {
+  width: min(620px, 100%);
+}
+
+.printable-badge {
+  margin: 18px auto 24px;
+  padding: 24px;
+  border: 2px solid var(--wine-800);
+  border-radius: 22px;
+  text-align: center;
+}
+
+.printable-badge__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.printable-badge__header img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.printable-badge__header strong,
+.printable-badge__header span {
+  display: block;
+  text-align: left;
+}
+
+.printable-badge__header strong {
+  color: var(--wine-800);
+  font-size: 1.1rem;
+}
+
+.printable-badge__header span {
+  margin-top: 3px;
+  color: var(--gold);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.printable-badge h3 {
+  margin: 20px 0 14px;
+  font-size: 1.7rem;
+}
+
+.badge-qr {
+  width: 230px;
+  min-height: 230px;
+  margin: 0 auto 14px;
+  padding: 5px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.printable-badge > strong {
+  display: block;
+  color: var(--wine-800);
+  font-size: 1.25rem;
+  letter-spacing: .06em;
+}
+
+.printable-badge > small {
+  max-width: 360px;
+  margin: 14px auto 0;
+  color: var(--muted);
+  display: block;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .admin-section-nav {
+    top: 67px;
+  }
+
+  .admin-customers-heading {
+    flex-direction: column;
+  }
+
+  .admin-customers-heading .button {
+    width: 100%;
+  }
+
+  .admin-customer-search .search-control {
+    grid-template-columns: 1fr;
+  }
+
+  .cashier-header-actions #back-to-admin {
+    font-size: 0;
+    min-width: 42px;
+  }
+
+  .cashier-header-actions #back-to-admin::after {
+    content: "Admin";
+    font-size: .78rem;
+  }
+}
