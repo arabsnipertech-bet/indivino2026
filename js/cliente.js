@@ -31,14 +31,20 @@ function showPageError(text) {
   pageMessage.className = "demo-notice demo-notice--error";
 }
 
-function transactionLabel(type) {
+function transactionLabel(row) {
+  if (row.type === "pagamento") {
+    return row.stand?.name
+      ? `Pagamento · ${row.stand.name}`
+      : "Pagamento stand";
+  }
+
   const labels = {
     ricarica: "Ricarica cassa",
-    pagamento: "Pagamento stand",
     storno: "Storno",
     rettifica: "Rettifica amministrativa"
   };
-  return labels[type] || "Movimento";
+
+  return labels[row.type] || "Movimento";
 }
 
 function renderTransactions(rows) {
@@ -67,7 +73,7 @@ function renderTransactions(rows) {
     return `
       <div class="movement">
         <div>
-          <strong>${transactionLabel(row.type)}</strong>
+          <strong>${transactionLabel(row)}</strong>
           <span>${date}</span>
         </div>
         <b class="${positive ? "positive" : ""}">
@@ -171,7 +177,7 @@ async function loadDashboard() {
 
   const { data: transactionRows, error: transactionError } = await supabaseClient
     .from("transactions")
-    .select("id, type, amount_cents, created_at")
+    .select("id, type, amount_cents, created_at, stand:stands(name)")
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -189,7 +195,7 @@ async function loadDashboard() {
 
     const retry = await supabaseClient
       .from("transactions")
-      .select("id, type, amount_cents, created_at")
+      .select("id, type, amount_cents, created_at, stand:stands(name)")
       .eq("wallet_id", walletWithId.id)
       .order("created_at", { ascending: false })
       .limit(10);
