@@ -29,6 +29,10 @@ function response(body: unknown, status = 200) {
   });
 }
 
+function normalizeEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function generatePassword(length = 14) {
   const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lowercase = "abcdefghijkmnopqrstuvwxyz";
@@ -61,6 +65,11 @@ function generatePassword(length = 14) {
   }
 
   return chars.join("");
+}
+
+function generateBadgeCode() {
+  const random = crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
+  return `IV26-${random}`;
 }
 
 async function requireAdmin(req: Request) {
@@ -100,10 +109,7 @@ async function requireAdmin(req: Request) {
 
 type PositionType = "cassa" | "stand";
 
-async function getPosition(
-  type: PositionType,
-  code: string
-): Promise<{ id: string; code: string; name: string }> {
+async function getPosition(type: PositionType, code: string) {
   const table = type === "cassa" ? "cashier_stations" : "stands";
 
   const { data, error } = await adminClient
@@ -120,7 +126,7 @@ async function getPosition(
   return data;
 }
 
-async function findProfile(email: string) {
+async function findProfileByEmail(email: string) {
   const { data, error } = await adminClient
     .from("profiles")
     .select("id, email, role, active")
@@ -175,10 +181,23 @@ async function assignPosition(
   }
 }
 
-async function ensureOperator(
-  type: PositionType,
-  number: number
-) {
+async function ensureOperator(type: PositionType, number: number) {
+  if (!["cassa", "stand"].includes(type)) {
+    throw new Error("Tipo operatore non valido.");
+  }
+
+  if (!Number.isInteger(number)) {
+    throw new Error("Numero postazione non valido.");
+  }
+
+  if (type === "cassa" && (number < 2 || number > 20)) {
+    throw new Error("Le casse generabili sono Cassa 02–20.");
+  }
+
+  if (type === "stand" && (number < 1 || number > 15)) {
+    throw new Error("Gli stand generabili sono Stand 01–15.");
+  }
+
   const padded = String(number).padStart(2, "0");
   const code = type === "cassa" ? `CASSA${padded}` : `STAND${padded}`;
   const email =
@@ -188,10 +207,9 @@ async function ensureOperator(
 
   const firstName = type === "cassa" ? "Cassa" : "Stand";
   const lastName = padded;
-  const role = type;
   const position = await getPosition(type, code);
 
-  let profile = await findProfile(email);
+  const profile = await findProfileByEmail(email);
 
   if (profile) {
     const { error: updateError } = await adminClient
@@ -199,8 +217,11 @@ async function ensureOperator(
       .update({
         first_name: firstName,
         last_name: lastName,
-        role,
-        active: true
+        role: type,
+        active: true,
+        customer_source: "staff",
+        contact_email: null,
+        badge_code: null
       })
       .eq("id", profile.id);
 
@@ -212,7 +233,7 @@ async function ensureOperator(
       created: false,
       email,
       password: null,
-      role,
+      role: type,
       position_code: code,
       position_name: position.name
     };
@@ -227,7 +248,8 @@ async function ensureOperator(
       email_confirm: true,
       user_metadata: {
         nome: firstName,
-        cognome: lastName
+        cognome: lastName,
+        account_type: "staff"
       }
     });
 
@@ -240,8 +262,11 @@ async function ensureOperator(
     .update({
       first_name: firstName,
       last_name: lastName,
-      role,
-      active: true
+      role: type,
+      active: true,
+      customer_source: "staff",
+      contact_email: null,
+      badge_code: null
     })
     .eq("id", created.user.id);
 
@@ -253,34 +278,126 @@ async function ensureOperator(
     created: true,
     email,
     password,
-    role,
+    role: type,
     position_code: code,
     position_name: position.name
   };
 }
 
-async function generateStructure() {
-  const credentials = [];
+async function createCustomer(body: Record<string, unknown>) {
+  const firstName = String(body.first_name || "").trim();
+  const lastName = String(body.last_name || "").trim();
+  const contactEmail = normalizeEmail(body.email);
 
-  // CASSA01 è già l'amministratore principale.
-  for (let number = 2; number <= 20; number += 1) {
-    credentials.push(await ensureOperator("cassa", number));
+  if (!firstName || !lastName) {
+    throw new Error("Nome e cognome sono obbligatori.");
   }
 
-  for (let number = 1; number <= 15; number += 1) {
-    credentials.push(await ensureOperator("stand", number));
+  if (firstName.length > 80 || lastName.length > 80) {
+    throw new Error("Nome o cognome troppo lungo.");
+  }
+
+  if (contactEmail) {
+    const { data: duplicate, error: duplicateError } = await adminClient
+      .from("profiles")
+      .select("id, first_name, last_name, contact_email, email")
+      .or(`contact_email.eq.${contactEmail},email.eq.${contactEmail}`)
+      .maybeSingle();
+
+    if (duplicateError) throw duplicateError;
+
+    if (duplicate) {
+      throw new Error(
+        `Email già presente per ${duplicate.first_name} ${duplicate.last_name}. Cerca il cliente esistente.`
+      );
+    }
+  }
+
+  let badgeCode = generateBadgeCode();
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data: existingCode, error } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("badge_code", badgeCode)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!existingCode) break;
+
+    badgeCode = generateBadgeCode();
+  }
+
+  const authEmail = contactEmail ||
+    `badge.${badgeCode.toLowerCase().replaceAll("-", "")}@badge.indivino2026.local`;
+  const password = generatePassword();
+
+  const { data: created, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email: authEmail,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nome: firstName,
+        cognome: lastName,
+        account_type: "cliente",
+        customer_source: "badge",
+        contact_email: contactEmail || ""
+      }
+    });
+
+  if (createError || !created.user) {
+    throw createError || new Error("Creazione cliente non riuscita.");
+  }
+
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      role: "cliente",
+      active: true,
+      contact_email: contactEmail || null,
+      customer_source: "badge",
+      badge_code: badgeCode
+    })
+    .eq("id", created.user.id);
+
+  if (profileError) throw profileError;
+
+  const { data: wallet, error: walletError } = await adminClient
+    .from("wallets")
+    .select("id, qr_token, balance_cents, blocked")
+    .eq("user_id", created.user.id)
+    .single();
+
+  if (walletError || !wallet) {
+    throw walletError || new Error("Portafoglio non creato.");
   }
 
   return {
-    credentials,
-    created_count: credentials.filter((item) => item.created).length,
-    existing_count: credentials.filter((item) => !item.created).length
+    customer: {
+      user_id: created.user.id,
+      first_name: firstName,
+      last_name: lastName,
+      auth_email: authEmail,
+      contact_email: contactEmail || null,
+      customer_source: "badge",
+      badge_code: badgeCode,
+      wallet_id: wallet.id,
+      qr_token: wallet.qr_token,
+      balance_cents: wallet.balance_cents,
+      blocked: wallet.blocked,
+      active: true,
+      created_at: new Date().toISOString(),
+      password
+    }
   };
 }
 
 async function resetPassword(userId: string) {
   if (!userId) {
-    throw new Error("Identificativo operatore mancante.");
+    throw new Error("Identificativo utente mancante.");
   }
 
   const { data: profile, error: profileError } = await adminClient
@@ -306,7 +423,7 @@ async function resetPassword(userId: string) {
     .single();
 
   if (profileError || !profile) {
-    throw new Error("Operatore non trovato.");
+    throw new Error("Utente non trovato.");
   }
 
   const password = generatePassword();
@@ -345,12 +462,24 @@ Deno.serve(async (req: Request) => {
 
   try {
     await requireAdmin(req);
-
     const body = await req.json();
     const action = String(body?.action || "");
 
-    if (action === "generate_structure") {
-      return response(await generateStructure());
+    if (action === "health") {
+      return response({ ok: true });
+    }
+
+    if (action === "ensure_operator") {
+      return response(
+        await ensureOperator(
+          String(body.type || "") as PositionType,
+          Number(body.number)
+        )
+      );
+    }
+
+    if (action === "create_customer") {
+      return response(await createCustomer(body));
     }
 
     if (action === "reset_password") {
@@ -359,9 +488,14 @@ Deno.serve(async (req: Request) => {
 
     return response({ error: "Azione non riconosciuta." }, 400);
   } catch (error) {
-    console.error(error);
+    console.error("admin-staff:", error);
+
     return response(
-      { error: error instanceof Error ? error.message : "Errore inatteso." },
+      {
+        error: error instanceof Error
+          ? error.message
+          : "Errore inatteso."
+      },
       400
     );
   }
