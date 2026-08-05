@@ -5,6 +5,7 @@ const operatorName = document.querySelector("#operator-name");
 const cashierStationName = document.querySelector("#cashier-station-name");
 const cashierCode = document.querySelector("#cashier-code");
 const logoutButton = document.querySelector("#logout-button");
+const backToAdmin = document.querySelector("#back-to-admin");
 const pageMessage = document.querySelector("#page-message");
 
 const summaryTotal = document.querySelector("#summary-total");
@@ -171,6 +172,10 @@ async function requireCashierSession() {
 
   cashierStationName.textContent = cashierContext.cashier_name;
   cashierCode.textContent = cashierContext.cashier_code;
+
+  if (profile.role === "admin") {
+    backToAdmin?.classList.remove("is-hidden");
+  }
 
   return { session, profile, cashierContext };
 }
