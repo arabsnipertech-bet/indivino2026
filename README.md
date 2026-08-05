@@ -1,14 +1,16 @@
-# I Divini Digitali — Step 3 Cassa
+# I Divini Digitali — Step 4 Stand
 
-Versione con:
-- autenticazione cliente;
-- portafoglio e QR personale;
-- area cassa protetta;
-- scanner QR;
-- ricerca cliente;
-- ricarica atomica contanti/POS;
-- riepilogo giornaliero.
+Versione completa fino al pagamento agli stand:
 
-Prima di pubblicare, eseguire `sql/03_database_cassa.sql`.
+- cliente;
+- cassa;
+- stand;
+- portafoglio;
+- QR;
+- ricariche;
+- pagamenti atomici;
+- riepiloghi operativi.
 
-Consultare `STEP3-CASSA-INSTRUCTIONS.md`.
+Prima della pubblicazione eseguire `sql/05_database_stand.sql`.
+
+Consultare `STEP4-STAND-INSTRUCTIONS.md`.

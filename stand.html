@@ -3,23 +3,297 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b1018">
+  <meta name="description" content="Area stand I Divini Digitali - Indivino 2026">
+  <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/images/icon-192.png">
   <link rel="stylesheet" href="/css/style.css">
   <title>Area stand | I Divini Digitali</title>
 </head>
-<body class="auth-page">
-  <main class="auth-layout">
-    <section class="auth-brand">
-      <a href="/" class="back-link">← Torna alla home</a>
-      <div class="auth-logos">
-        <img src="/images/logo-proloco-solofra.png" alt="Pro Loco Solofra">
-        <img src="/images/logo-indivino-2026.png" alt="Indivino 2026">
+<body class="dashboard-page stand-page">
+  <header class="dashboard-header">
+    <a class="dashboard-brand" href="/">
+      <img src="/images/logo-indivino-2026.png" alt="Indivino 2026">
+      <span>I Divini Digitali</span>
+    </a>
+
+    <div class="stand-header-actions">
+      <span class="operator-label">
+        <strong id="stand-header-name">Stand…</strong>
+        · <span id="operator-name">Operatore…</span>
+      </span>
+      <button class="button button--ghost button--small" id="logout-button">Esci</button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell stand-shell">
+    <section class="welcome-row stand-welcome">
+      <div>
+        <span class="eyebrow" id="stand-code">Stand</span>
+        <h1 id="stand-name">Caricamento…</h1>
+        <p>Scansiona il QR del cliente e conferma l’importo da addebitare.</p>
       </div>
-      <span class="eyebrow">Modulo stand</span>
-      <h1>Incassi in preparazione</h1>
-      <p>La pagina sarà attivata dopo il modulo cassa con scansione QR, scelta dei Divini e conferma del pagamento.</p>
-      <a class="button button--primary" href="/login">Torna all’accesso</a>
+      <span class="status-badge">Stand attivo</span>
     </section>
+
+    <section class="stand-summary" aria-label="Riepilogo dello stand">
+      <article class="summary-card">
+        <span>Incassato oggi</span>
+        <strong id="summary-total">—</strong>
+      </article>
+      <article class="summary-card">
+        <span>Pagamenti</span>
+        <strong id="summary-count">—</strong>
+      </article>
+      <article class="summary-card">
+        <span>Clienti serviti</span>
+        <strong id="summary-customers">—</strong>
+      </article>
+      <article class="summary-card">
+        <span>Ticket medio</span>
+        <strong id="summary-average">—</strong>
+      </article>
+    </section>
+
+    <section class="stand-layout">
+      <div class="stand-main">
+        <article class="panel stand-scanner-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">1. Cliente</span>
+              <h2>Scansiona il QR</h2>
+            </div>
+            <span class="secure-chip">Solo QR</span>
+          </div>
+
+          <div class="scanner-frame stand-scanner-frame">
+            <div id="qr-reader"></div>
+            <div id="scanner-placeholder" class="scanner-placeholder">
+              <strong>Fotocamera non ancora attiva</strong>
+              <span>Premi il pulsante e inquadra il QR personale del cliente.</span>
+            </div>
+          </div>
+
+          <div class="scanner-actions">
+            <button class="button button--primary" type="button" id="start-scanner">
+              Avvia fotocamera
+            </button>
+            <button class="button button--secondary is-hidden" type="button" id="stop-scanner">
+              Ferma fotocamera
+            </button>
+          </div>
+
+          <details class="manual-code-box">
+            <summary>Inserisci il codice manualmente</summary>
+            <form id="manual-code-form">
+              <label for="manual-code">Codice riportato sotto il QR</label>
+              <div class="search-control">
+                <input
+                  id="manual-code"
+                  name="code"
+                  type="text"
+                  minlength="20"
+                  autocomplete="off"
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  required
+                >
+                <button class="button button--primary" type="submit">Verifica</button>
+              </div>
+            </form>
+          </details>
+
+          <div id="scanner-message" class="form-message" aria-live="polite"></div>
+        </article>
+
+        <article class="panel stand-payment-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">2. Pagamento</span>
+              <h2>Seleziona i Divini</h2>
+            </div>
+            <span id="selected-status" class="selection-chip">Nessun cliente</span>
+          </div>
+
+          <div id="selected-customer-empty" class="empty-state">
+            <strong>Scansiona prima il QR</strong>
+            <span>Per tutela della privacy lo stand non può cercare clienti per nome o email.</span>
+          </div>
+
+          <div id="selected-customer" class="stand-selected-customer is-hidden">
+            <div class="selected-customer__identity">
+              <div class="customer-avatar" id="selected-initials">ID</div>
+              <div>
+                <strong id="selected-name">—</strong>
+                <span>Cliente verificato</span>
+              </div>
+            </div>
+
+            <div class="selected-customer__balance">
+              <span>Saldo disponibile</span>
+              <strong id="selected-balance">—</strong>
+              <b id="selected-divini">— Divini</b>
+            </div>
+          </div>
+
+          <form id="payment-form" class="stand-payment-form">
+            <fieldset id="payment-fieldset" disabled>
+              <legend>Numero di Divini</legend>
+
+              <div class="divini-buttons">
+                <button type="button" class="divini-button" data-divini="1">
+                  <strong>1</strong><span>2 €</span>
+                </button>
+                <button type="button" class="divini-button" data-divini="2">
+                  <strong>2</strong><span>4 €</span>
+                </button>
+                <button type="button" class="divini-button" data-divini="3">
+                  <strong>3</strong><span>6 €</span>
+                </button>
+                <button type="button" class="divini-button" data-divini="4">
+                  <strong>4</strong><span>8 €</span>
+                </button>
+                <button type="button" class="divini-button" data-divini="5">
+                  <strong>5</strong><span>10 €</span>
+                </button>
+              </div>
+
+              <label for="custom-divini">Oppure inserisci il numero</label>
+              <div class="divini-input">
+                <input
+                  id="custom-divini"
+                  name="divini"
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                  inputmode="numeric"
+                  placeholder="1"
+                  required
+                >
+                <span>Divini</span>
+              </div>
+
+              <div class="stand-payment-preview">
+                <div>
+                  <span>Da addebitare</span>
+                  <strong id="payment-preview">0,00 €</strong>
+                  <b id="divini-preview">0 Divini</b>
+                </div>
+                <div>
+                  <span>Saldo dopo</span>
+                  <strong id="after-preview">—</strong>
+                </div>
+              </div>
+
+              <div id="balance-warning" class="balance-warning is-hidden">
+                Saldo insufficiente per completare il pagamento.
+              </div>
+
+              <label for="payment-note">Nota facoltativa</label>
+              <input
+                id="payment-note"
+                name="note"
+                type="text"
+                maxlength="120"
+                placeholder="Es. calice degustazione"
+              >
+
+              <div id="payment-message" class="form-message" aria-live="polite"></div>
+
+              <button class="button button--primary button--full" id="open-confirmation" type="submit">
+                Continua
+              </button>
+            </fieldset>
+          </form>
+        </article>
+      </div>
+
+      <aside class="stand-side">
+        <article class="panel stand-receipt-panel is-hidden" id="receipt-panel">
+          <span class="eyebrow">Pagamento completato</span>
+          <h2>Addebito riuscito</h2>
+          <div class="receipt-success-mark">✓</div>
+
+          <dl class="receipt-details">
+            <div><dt>Cliente</dt><dd id="receipt-customer">—</dd></div>
+            <div><dt>Divini</dt><dd id="receipt-divini">—</dd></div>
+            <div><dt>Importo</dt><dd id="receipt-amount">—</dd></div>
+            <div><dt>Saldo precedente</dt><dd id="receipt-before">—</dd></div>
+            <div><dt>Saldo residuo</dt><dd id="receipt-after">—</dd></div>
+            <div><dt>Codice operazione</dt><dd><code id="receipt-id">—</code></dd></div>
+          </dl>
+
+          <button class="button button--primary button--full" type="button" id="new-payment">
+            Scansiona un altro cliente
+          </button>
+        </article>
+
+        <article class="panel recent-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">Controllo</span>
+              <h2>Ultimi pagamenti</h2>
+            </div>
+            <button class="icon-button" type="button" id="refresh-payments" aria-label="Aggiorna pagamenti">↻</button>
+          </div>
+
+          <div id="recent-payments" class="recent-recharges">
+            <div class="empty-state">
+              <strong>Caricamento…</strong>
+            </div>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <div id="page-message" class="demo-notice">
+      Lo stand vede soltanto il nome abbreviato e il saldo necessario per completare l’operazione.
+    </div>
   </main>
+
+  <div class="payment-modal is-hidden" id="payment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="payment-modal__backdrop" data-close-modal></div>
+    <section class="payment-modal__card">
+      <span class="eyebrow">Conferma finale</span>
+      <h2 id="modal-title">Confermare il pagamento?</h2>
+
+      <div class="modal-customer">
+        <div class="customer-avatar" id="modal-initials">ID</div>
+        <div>
+          <strong id="modal-customer">—</strong>
+          <span id="modal-stand">—</span>
+        </div>
+      </div>
+
+      <div class="modal-amount">
+        <span>Importo da addebitare</span>
+        <strong id="modal-amount">—</strong>
+        <b id="modal-divini">— Divini</b>
+      </div>
+
+      <dl class="modal-balances">
+        <div><dt>Saldo attuale</dt><dd id="modal-before">—</dd></div>
+        <div><dt>Saldo residuo</dt><dd id="modal-after">—</dd></div>
+      </dl>
+
+      <p class="modal-warning">
+        Verifica l’importo prima di procedere. Lo storno potrà essere effettuato soltanto dall’amministrazione.
+      </p>
+
+      <div id="modal-message" class="form-message" aria-live="polite"></div>
+
+      <div class="modal-actions">
+        <button class="button button--secondary" type="button" data-close-modal>Annulla</button>
+        <button class="button button--primary" type="button" id="confirm-payment">
+          Conferma pagamento
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="/js/app.js"></script>
+  <script type="module" src="/js/stand.js"></script>
 </body>
 </html>
