@@ -1,12 +1,18 @@
-# I Divini Digitali — Step 7 Stripe
+# I Divini Digitali — Step 8
 
-Aggiunge ricariche autonome per i clienti autenticati mediante Stripe Checkout.
+Controlli economici finali prima del go-live:
 
-File principali:
+- credito separato per origine;
+- rimborso soltanto contanti;
+- ticket gratuito amministrativo;
+- eliminazione o anonimizzazione clienti;
+- quadratura corretta;
+- Stripe ancora in modalità test.
 
-- `sql/10_database_stripe.sql`
-- `supabase/functions/stripe-create-checkout/index.ts`
-- `supabase/functions/stripe-webhook/index.ts`
-- `STEP7-STRIPE-INSTRUCTIONS.md`
+Eseguire prima:
 
-Configurare e collaudare prima in modalità Stripe TEST.
+`sql/12_database_controls.sql`
+
+Poi ripubblicare:
+
+`supabase/functions/admin-staff/index.ts`

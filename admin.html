@@ -19,7 +19,7 @@
 
     <div class="admin-header-actions">
       <a class="button button--ghost button--small" href="/cassa">
-        Apri Cassa 01
+        Cassa 01
       </a>
       <span class="operator-label">
         Admin: <strong id="admin-name">…</strong>
@@ -103,6 +103,17 @@
         <span>Stripe online</span>
         <strong id="total-stripe">—</strong>
         <small>Ricariche autonome</small>
+      </article>
+
+      <article class="admin-stat-card">
+        <span>Ticket gratuiti</span>
+        <strong id="total-free-tickets">—</strong>
+        <small id="free-ticket-count">— operazioni</small>
+      </article>
+      <article class="admin-stat-card">
+        <span>Rimborsi contanti</span>
+        <strong id="total-cash-refunds">—</strong>
+        <small id="cash-refund-count">— operazioni</small>
       </article>
     </section>
 
@@ -278,7 +289,7 @@
               <th>Cliente</th>
               <th>Tipo</th>
               <th>Accesso / contatto</th>
-              <th>Saldo</th>
+              <th>Saldo / rimborsabile</th>
               <th>Badge</th>
               <th>Stato</th>
               <th>Azioni</th>
@@ -499,6 +510,108 @@
       <div class="modal-actions">
         <button class="button button--secondary" type="button" data-close-badge>Chiudi</button>
         <button class="button button--primary" type="button" id="print-badge">Stampa badge</button>
+      </div>
+    </section>
+  </div>
+
+
+  <div class="payment-modal is-hidden" id="cash-refund-modal" role="dialog" aria-modal="true" aria-labelledby="cash-refund-title">
+    <div class="payment-modal__backdrop" data-close-cash-refund></div>
+    <section class="payment-modal__card">
+      <span class="eyebrow">Rimborso amministrativo</span>
+      <h2 id="cash-refund-title">Restituisci credito contante</h2>
+
+      <div class="modal-customer">
+        <div class="customer-avatar" id="cash-refund-initials">ID</div>
+        <div>
+          <strong id="cash-refund-customer">—</strong>
+          <span>Solo credito acquistato in contanti e ancora disponibile</span>
+        </div>
+      </div>
+
+      <dl class="modal-balances">
+        <div><dt>Saldo totale</dt><dd id="cash-refund-total-balance">—</dd></div>
+        <div><dt>Massimo rimborsabile in contanti</dt><dd id="cash-refund-available">—</dd></div>
+      </dl>
+
+      <form id="cash-refund-form">
+        <label for="cash-refund-divini">Divini da rimborsare</label>
+        <div class="divini-input">
+          <input
+            id="cash-refund-divini"
+            name="divini"
+            type="number"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            required
+          >
+          <span>Divini</span>
+        </div>
+
+        <div class="stand-payment-preview">
+          <div>
+            <span>Contanti da restituire</span>
+            <strong id="cash-refund-amount">0,00 €</strong>
+            <b id="cash-refund-divini-preview">0 Divini</b>
+          </div>
+          <div>
+            <span>Saldo residuo</span>
+            <strong id="cash-refund-after">—</strong>
+          </div>
+        </div>
+
+        <label for="cash-refund-note">Motivazione</label>
+        <input
+          id="cash-refund-note"
+          name="note"
+          type="text"
+          maxlength="160"
+          placeholder="Es. cliente lascia l’evento"
+          required
+        >
+
+        <div id="cash-refund-message" class="form-message" aria-live="polite"></div>
+
+        <div class="modal-actions">
+          <button class="button button--secondary" type="button" data-close-cash-refund>Annulla</button>
+          <button class="button button--primary" type="submit">Conferma rimborso</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="payment-modal is-hidden" id="free-ticket-modal" role="dialog" aria-modal="true" aria-labelledby="free-ticket-title">
+    <div class="payment-modal__backdrop" data-close-free-ticket></div>
+    <section class="payment-modal__card">
+      <span class="eyebrow">Omaggio amministrativo</span>
+      <h2 id="free-ticket-title">Assegna ticket gratuito</h2>
+
+      <div class="modal-customer">
+        <div class="customer-avatar" id="free-ticket-initials">ID</div>
+        <div>
+          <strong id="free-ticket-customer">—</strong>
+          <span>Il ticket non è convertibile in contanti</span>
+        </div>
+      </div>
+
+      <div id="free-ticket-presets" class="free-ticket-presets">
+        <div class="empty-state"><strong>Caricamento importi…</strong></div>
+      </div>
+
+      <label for="free-ticket-note">Motivazione facoltativa</label>
+      <input
+        id="free-ticket-note"
+        type="text"
+        maxlength="160"
+        placeholder="Es. ospite, premio, collaborazione"
+      >
+
+      <div id="free-ticket-message" class="form-message" aria-live="polite"></div>
+
+      <div class="modal-actions">
+        <button class="button button--secondary" type="button" data-close-free-ticket>Annulla</button>
+        <button class="button button--primary" type="button" id="confirm-free-ticket" disabled>Assegna ticket</button>
       </div>
     </section>
   </div>
