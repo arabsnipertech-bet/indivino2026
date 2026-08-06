@@ -451,6 +451,118 @@ async function resetPassword(userId: string) {
   };
 }
 
+
+async function deleteCustomer(userId: string) {
+  if (!userId) {
+    throw new Error("Identificativo cliente mancante.");
+  }
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, role, first_name, last_name, active, deleted_at")
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error("Cliente non trovato.");
+  }
+
+  if (profile.role !== "cliente") {
+    throw new Error("È possibile eliminare soltanto clienti.");
+  }
+
+  if (profile.deleted_at) {
+    return {
+      mode: "anonymized",
+      already_deleted: true
+    };
+  }
+
+  const { data: wallet, error: walletError } = await adminClient
+    .from("wallets")
+    .select("id, balance_cents")
+    .eq("user_id", userId)
+    .single();
+
+  if (walletError || !wallet) {
+    throw new Error("Portafoglio cliente non trovato.");
+  }
+
+  if (Number(wallet.balance_cents) !== 0) {
+    throw new Error(
+      "Il cliente non può essere eliminato finché il saldo non è zero."
+    );
+  }
+
+  const [
+    transactionResult,
+    stripeResult
+  ] = await Promise.all([
+    adminClient
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_id", wallet.id),
+    adminClient
+      .from("stripe_payments")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_id", wallet.id)
+  ]);
+
+  if (transactionResult.error) {
+    throw transactionResult.error;
+  }
+
+  if (stripeResult.error) {
+    throw stripeResult.error;
+  }
+
+  const hasFinancialHistory =
+    Number(transactionResult.count || 0) > 0 ||
+    Number(stripeResult.count || 0) > 0;
+
+  if (!hasFinancialHistory) {
+    const { error: deleteError } =
+      await adminClient.auth.admin.deleteUser(
+        userId,
+        false
+      );
+
+    if (deleteError) throw deleteError;
+
+    return {
+      mode: "deleted",
+      user_id: userId
+    };
+  }
+
+  const { error: anonymizeError } = await adminClient.rpc(
+    "admin_anonymize_customer",
+    {
+      p_user_id: userId
+    }
+  );
+
+  if (anonymizeError) throw anonymizeError;
+
+  const { error: softDeleteError } =
+    await adminClient.auth.admin.deleteUser(
+      userId,
+      true
+    );
+
+  if (softDeleteError) {
+    console.warn(
+      "Profilo anonimizzato, soft delete Auth non riuscita:",
+      softDeleteError
+    );
+  }
+
+  return {
+    mode: "anonymized",
+    user_id: userId
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return response({ ok: true });
@@ -484,6 +596,12 @@ Deno.serve(async (req: Request) => {
 
     if (action === "reset_password") {
       return response(await resetPassword(String(body?.user_id || "")));
+    }
+
+    if (action === "delete_customer") {
+      return response(
+        await deleteCustomer(String(body?.user_id || ""))
+      );
     }
 
     return response({ error: "Azione non riconosciuta." }, 400);
