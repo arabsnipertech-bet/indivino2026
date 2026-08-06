@@ -43,7 +43,7 @@ function translateAuthError(error) {
   const raw = String(error?.message || "").toLowerCase();
 
   if (raw.includes("invalid login credentials")) {
-    return "Email o password non corretti.";
+    return "Email/codice accesso o password non corretti.";
   }
   if (raw.includes("email not confirmed")) {
     return "Devi prima confermare il tuo indirizzo email.";
@@ -102,8 +102,14 @@ if (loginForm) {
     }
 
     const formData = new FormData(loginForm);
-    const email = String(formData.get("email") || "").trim().toLowerCase();
+    const loginValue = String(
+      formData.get("email") || ""
+    ).trim().toLowerCase();
     const password = String(formData.get("password") || "");
+
+    const email = loginValue.includes("@")
+      ? loginValue
+      : `${loginValue.replaceAll(" ", "")}@operatori.indivino2026.it`;
 
     setLoading(loginForm, true, "Accesso in corso…");
 
@@ -151,8 +157,7 @@ if (registrationForm) {
           data: {
             nome,
             cognome
-          },
-          emailRedirectTo: `${window.location.origin}/cliente`
+          }
         }
       });
 
@@ -168,10 +173,9 @@ if (registrationForm) {
       }
 
       showMessage(
-        "Registrazione completata. Controlla la tua email e conferma l’account prima di accedere.",
-        "success"
+        "La conferma email risulta ancora attiva nelle impostazioni Supabase. Disattivala per consentire l’accesso immediato.",
+        "error"
       );
-      registrationForm.reset();
     } catch (error) {
       console.error("Errore registrazione:", error);
       showMessage(translateAuthError(error), "error");

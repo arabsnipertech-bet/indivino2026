@@ -50,6 +50,14 @@ const positionCodeView = $("#position-code-view");
 const positionNameInput = $("#position-name");
 const positionResponsibleInput = $("#position-responsible");
 const positionModalMessage = $("#position-modal-message");
+const positionCurrentOperator = $("#position-current-operator");
+const positionCurrentLogin = $("#position-current-login");
+const positionCreateOperator = $("#position-create-operator");
+const positionOperatorFields = $("#position-operator-fields");
+const positionOperatorFirstName = $("#position-operator-first-name");
+const positionOperatorLastName = $("#position-operator-last-name");
+const positionAccessCode = $("#position-access-code");
+const positionOperatorPassword = $("#position-operator-password");
 
 const customerSearchForm = $("#customer-search-form");
 const customerQuery = $("#customer-query");
@@ -108,6 +116,10 @@ const staffProgressBar = $("#staff-progress-bar");
 
 const transactionList = $("#transaction-list");
 const exportTransactionsButton = $("#export-transactions");
+
+const installAppQr = $("#install-app-qr");
+const installAppUrl = $("#install-app-url");
+const printInstallQrButton = $("#print-install-qr");
 
 const credentialsModal = $("#credentials-modal");
 const credentialsPreview = $("#credentials-preview");
@@ -451,7 +463,14 @@ function renderPositions() {
       <tr>
         <td><strong>${escapeHtml(row.code)}</strong></td>
         <td>${escapeHtml(row.name)}</td>
-        <td>${escapeHtml(row.responsible_name || "Non indicato")}</td>
+        <td>
+          <strong>${escapeHtml(row.responsible_name || "Non indicato")}</strong>
+          <small>
+            ${row.operator_access_code
+              ? `Accesso: ${escapeHtml(row.operator_access_code)}`
+              : "Nessun accesso diretto"}
+          </small>
+        </td>
         <td>${escapeHtml(positionTypeLabel(row.position_type))}</td>
         <td>
           <span class="status-pill ${row.active ? "is-active" : "is-disabled"}">
@@ -506,7 +525,53 @@ function openPositionModal(row) {
   positionCodeView.value = row.code;
   positionNameInput.value = row.name;
   positionResponsibleInput.value = row.responsible_name || "";
+
+  positionCreateOperator.checked = false;
+  positionOperatorFields.classList.add("is-hidden");
+  positionOperatorFirstName.value = "";
+  positionOperatorLastName.value = "";
+  positionAccessCode.value = "";
+  positionOperatorPassword.value = "";
+
+  if (row.primary_operator_id) {
+    positionCurrentOperator.textContent =
+      `${row.operator_first_name || ""} ${row.operator_last_name || ""}`.trim();
+    positionCurrentLogin.textContent = row.operator_access_code
+      ? `Codice accesso: ${row.operator_access_code}`
+      : row.operator_email || "Accesso non disponibile";
+  } else {
+    positionCurrentOperator.textContent =
+      "Nessun profilo responsabile associato";
+    positionCurrentLogin.textContent = "—";
+  }
+
   openModal(positionModal);
+}
+
+
+positionCreateOperator?.addEventListener("change", () => {
+  positionOperatorFields.classList.toggle(
+    "is-hidden",
+    !positionCreateOperator.checked
+  );
+
+  if (positionCreateOperator.checked) {
+    setTimeout(() => positionOperatorFirstName.focus(), 50);
+  }
+});
+
+document.querySelector("[data-position-password-toggle]")
+  ?.addEventListener("click", (event) => {
+    const reveal = positionOperatorPassword.type === "password";
+    positionOperatorPassword.type = reveal ? "text" : "password";
+    event.currentTarget.textContent = reveal ? "Nascondi" : "Mostra";
+  });
+
+function normalizeOperatorAccessCode(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "");
 }
 
 $$("[data-close-position]").forEach((element) => {
@@ -517,26 +582,132 @@ positionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearMessage(positionModalMessage);
 
-  const submitButton = positionForm.querySelector('button[type="submit"]');
+  const submitButton =
+    positionForm.querySelector('button[type="submit"]');
+
+  const createOperator = positionCreateOperator.checked;
+  const firstName = positionOperatorFirstName.value.trim();
+  const lastName = positionOperatorLastName.value.trim();
+  const accessCode = normalizeOperatorAccessCode(
+    positionAccessCode.value
+  );
+  const password = positionOperatorPassword.value;
+
+  if (createOperator) {
+    if (!firstName || !lastName || !accessCode) {
+      showMessage(
+        positionModalMessage,
+        "Per creare l’accesso inserisci nome, cognome e codice accesso.",
+        "error"
+      );
+      return;
+    }
+
+    if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(accessCode)) {
+      showMessage(
+        positionModalMessage,
+        "Il codice accesso deve contenere 3–40 caratteri: lettere minuscole, numeri, punto, trattino o underscore.",
+        "error"
+      );
+      return;
+    }
+
+    if (password && password.length < 8) {
+      showMessage(
+        positionModalMessage,
+        "La password scelta deve contenere almeno 8 caratteri.",
+        "error"
+      );
+      return;
+    }
+
+    const currentRow = positions.find(
+      (row) =>
+        row.position_type === positionTypeInput.value &&
+        row.code === positionCodeInput.value
+    );
+
+    if (currentRow?.primary_operator_id) {
+      const confirmed = window.confirm(
+        `La postazione ha già un responsabile operativo. Creando il nuovo accesso, il precedente verrà disattivato. Continuare?`
+      );
+
+      if (!confirmed) return;
+    }
+  }
+
   setButtonLoading(submitButton, true, "Salvataggio…");
 
-  const { error } = await supabaseClient.rpc("admin_update_position", {
-    p_position_type: positionTypeInput.value,
-    p_code: positionCodeInput.value,
-    p_name: positionNameInput.value.trim(),
-    p_responsible_name: positionResponsibleInput.value.trim() || null
-  });
-
-  setButtonLoading(submitButton, false);
+  const { error } = await supabaseClient.rpc(
+    "admin_update_position",
+    {
+      p_position_type: positionTypeInput.value,
+      p_code: positionCodeInput.value,
+      p_name: positionNameInput.value.trim(),
+      p_responsible_name:
+        positionResponsibleInput.value.trim() || null
+    }
+  );
 
   if (error) {
-    showMessage(positionModalMessage, readableError(error), "error");
+    setButtonLoading(submitButton, false);
+    showMessage(
+      positionModalMessage,
+      readableError(error),
+      "error"
+    );
     return;
   }
 
-  closeModal(positionModal);
-  showMessage(positionsMessage, "Postazione aggiornata.", "success");
-  await Promise.all([loadPositions(), loadDashboard()]);
+  try {
+    if (createOperator) {
+      const result = await invokeAdminFunction({
+        action: "create_position_operator",
+        type: positionTypeInput.value,
+        code: positionCodeInput.value,
+        first_name: firstName,
+        last_name: lastName,
+        access_code: accessCode,
+        password: password || null
+      });
+
+      generatedCredentials = [{
+        position_name: result.position_name,
+        email: result.email,
+        access_code: result.access_code,
+        password: result.password,
+        role: result.role
+      }];
+
+      renderCredentials(generatedCredentials);
+      downloadCredentialsButton.disabled = false;
+      downloadCredentialsModalButton.disabled = false;
+      openModal(credentialsModal);
+    }
+
+    closeModal(positionModal);
+    showMessage(
+      positionsMessage,
+      createOperator
+        ? "Postazione aggiornata e nuovo responsabile operativo creato."
+        : "Postazione aggiornata.",
+      "success"
+    );
+
+    await Promise.all([
+      loadPositions(),
+      loadStaff(),
+      loadDashboard()
+    ]);
+  } catch (operatorError) {
+    showMessage(
+      positionModalMessage,
+      readableError(operatorError),
+      "error"
+    );
+  } finally {
+    setButtonLoading(submitButton, false);
+  }
 });
 
 function customerSourceLabel(source) {
@@ -1302,7 +1473,11 @@ function renderCredentials(rows) {
         <div class="credential-row">
           <div>
             <strong>${escapeHtml(row.position_name)}</strong>
-            <span>${escapeHtml(row.email)}</span>
+            <span>
+              ${row.access_code
+                ? `Codice accesso: ${escapeHtml(row.access_code)}`
+                : escapeHtml(row.email)}
+            </span>
           </div>
           <code>${escapeHtml(row.password)}</code>
         </div>
@@ -1423,10 +1598,11 @@ function downloadCredentials() {
   if (!generatedCredentials.length) return;
 
   downloadCsv("indivino-credenziali-operatori.csv", [
-    ["Postazione", "Ruolo", "Email accesso", "Password temporanea"],
+    ["Postazione", "Ruolo", "Codice accesso", "Email tecnica", "Password temporanea"],
     ...generatedCredentials.map((row) => [
       row.position_name,
       roleLabel(row.role),
+      row.access_code || "",
       row.email,
       row.password
     ])
@@ -1587,6 +1763,108 @@ todayButton.addEventListener("click", async () => {
 
 refreshButton.addEventListener("click", refreshAll);
 
+
+function renderInstallAppQr() {
+  if (!installAppQr || !window.QRCode) return;
+
+  const url = `${window.location.origin}/installa`;
+  installAppUrl.textContent = url;
+  installAppQr.innerHTML = "";
+
+  new window.QRCode(installAppQr, {
+    text: url,
+    width: 230,
+    height: 230,
+    colorDark: "#241b1d",
+    colorLight: "#ffffff",
+    correctLevel: window.QRCode.CorrectLevel.H
+  });
+}
+
+printInstallQrButton?.addEventListener("click", () => {
+  const canvas = installAppQr?.querySelector("canvas");
+  const image = installAppQr?.querySelector("img");
+  const qrData = canvas?.toDataURL("image/png") || image?.src;
+  const url = installAppUrl?.textContent || "";
+
+  if (!qrData) {
+    showMessage(
+      adminMessage,
+      "QR di installazione non ancora disponibile.",
+      "error"
+    );
+    return;
+  }
+
+  const printWindow = window.open(
+    "",
+    "_blank",
+    "width=620,height=820"
+  );
+
+  if (!printWindow) {
+    showMessage(
+      adminMessage,
+      "Il browser ha bloccato la finestra di stampa.",
+      "error"
+    );
+    return;
+  }
+
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="it">
+    <head>
+      <meta charset="utf-8">
+      <title>Installa I Divini Digitali</title>
+      <style>
+        @page { size: A4 portrait; margin: 18mm; }
+        body {
+          font-family: Arial, sans-serif;
+          color: #2b171b;
+          text-align: center;
+        }
+        .card {
+          max-width: 520px;
+          margin: 30px auto;
+          padding: 35px;
+          border: 3px solid #641426;
+          border-radius: 28px;
+        }
+        h1 { color: #641426; font-size: 34px; }
+        p { font-size: 20px; line-height: 1.5; }
+        img { width: 330px; height: 330px; }
+        code {
+          display: block;
+          margin-top: 20px;
+          padding: 12px;
+          background: #f5eeee;
+          border-radius: 10px;
+          font-size: 14px;
+          word-break: break-all;
+        }
+      </style>
+    </head>
+    <body>
+      <article class="card">
+        <h1>I Divini Digitali</h1>
+        <p>Scansiona il QR con la fotocamera del telefono e installa l’app ufficiale di Indivino 2026.</p>
+        <img src="${qrData}" alt="QR installazione">
+        <code>${escapeHtml(url)}</code>
+      </article>
+      <script>
+        window.onload = () => {
+          window.print();
+          window.onafterprint = () => window.close();
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+});
+
 logoutButton.addEventListener("click", async () => {
   logoutButton.disabled = true;
   await supabaseClient.auth.signOut();
@@ -1601,6 +1879,7 @@ try {
   const session = await requireAdminSession();
 
   if (session) {
+    renderInstallAppQr();
     await refreshAll();
   }
 } catch (error) {
