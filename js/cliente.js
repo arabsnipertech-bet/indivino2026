@@ -78,6 +78,14 @@ function transactionLabel(row) {
     return "Ricarica online · Stripe";
   }
 
+  if (row.type === "ricarica" && row.payment_method === "omaggio") {
+    return "Ticket gratuito";
+  }
+
+  if (row.type === "storno" && row.payment_method === "contanti") {
+    return "Rimborso contanti";
+  }
+
   const labels = {
     ricarica: "Ricarica cassa",
     storno: "Storno",
@@ -101,7 +109,13 @@ function renderTransactions(rows) {
   }
 
   movements.innerHTML = rows.map((row) => {
-    const positive = row.type !== "pagamento";
+    const positive = !(
+      row.type === "pagamento" ||
+      (
+        row.type === "storno" &&
+        row.payment_method === "contanti"
+      )
+    );
     const sign = positive ? "+" : "−";
     const date = new Intl.DateTimeFormat(APP_CONFIG.locale, {
       day: "2-digit",

@@ -22,6 +22,10 @@ const totalRemaining = $("#total-remaining");
 const totalCash = $("#total-cash");
 const totalPos = $("#total-pos");
 const totalStripe = $("#total-stripe");
+const totalFreeTickets = $("#total-free-tickets");
+const freeTicketCount = $("#free-ticket-count");
+const totalCashRefunds = $("#total-cash-refunds");
+const cashRefundCount = $("#cash-refund-count");
 const rechargeCount = $("#recharge-count");
 const paymentCount = $("#payment-count");
 const remainingDivini = $("#remaining-divini");
@@ -67,6 +71,27 @@ const badgePassword = $("#badge-password");
 const badgeToken = $("#badge-token");
 const printBadgeButton = $("#print-badge");
 
+const cashRefundModal = $("#cash-refund-modal");
+const cashRefundForm = $("#cash-refund-form");
+const cashRefundInitials = $("#cash-refund-initials");
+const cashRefundCustomer = $("#cash-refund-customer");
+const cashRefundTotalBalance = $("#cash-refund-total-balance");
+const cashRefundAvailable = $("#cash-refund-available");
+const cashRefundDivini = $("#cash-refund-divini");
+const cashRefundAmount = $("#cash-refund-amount");
+const cashRefundDiviniPreview = $("#cash-refund-divini-preview");
+const cashRefundAfter = $("#cash-refund-after");
+const cashRefundNote = $("#cash-refund-note");
+const cashRefundMessage = $("#cash-refund-message");
+
+const freeTicketModal = $("#free-ticket-modal");
+const freeTicketInitials = $("#free-ticket-initials");
+const freeTicketCustomer = $("#free-ticket-customer");
+const freeTicketPresetsContainer = $("#free-ticket-presets");
+const freeTicketNote = $("#free-ticket-note");
+const freeTicketMessage = $("#free-ticket-message");
+const confirmFreeTicketButton = $("#confirm-free-ticket");
+
 const configuredCashiers = $("#configured-cashiers");
 const configuredStands = $("#configured-stands");
 const activeStaff = $("#active-staff");
@@ -94,6 +119,9 @@ let transactionRows = [];
 let customerRows = [];
 let generatedCredentials = [];
 let currentBadge = null;
+let selectedControlCustomer = null;
+let freeTicketPresets = [];
+let selectedFreeTicketPreset = null;
 
 function formatEuro(cents) {
   return new Intl.NumberFormat(APP_CONFIG.locale, {
@@ -256,7 +284,7 @@ async function invokeAdminFunction(body) {
   return data;
 }
 
-function renderOverview(data, stripeSummary = {}) {
+function renderOverview(data, stripeSummary = {}, controlSummary = {}) {
   const totals = data?.totals || {};
   const staff = data?.staff || {};
 
@@ -267,6 +295,13 @@ function renderOverview(data, stripeSummary = {}) {
   totalCash.textContent = formatEuro(totals.cash_cents);
   totalPos.textContent = formatEuro(totals.pos_cents);
   totalStripe.textContent = formatEuro(stripeSummary.stripe_cents);
+  totalFreeTickets.textContent = formatEuro(controlSummary.free_ticket_cents);
+  freeTicketCount.textContent =
+    `${formatNumber(controlSummary.free_ticket_count)} operazioni`;
+  totalCashRefunds.textContent =
+    formatEuro(controlSummary.cash_refund_cents);
+  cashRefundCount.textContent =
+    `${formatNumber(controlSummary.cash_refund_count)} operazioni`;
 
   rechargeCount.textContent = `${formatNumber(totals.recharge_count)} ricariche`;
   paymentCount.textContent = `${formatNumber(totals.payment_count)} pagamenti`;
@@ -279,6 +314,7 @@ function renderOverview(data, stripeSummary = {}) {
   const difference =
     Number(totals.loaded_all_time_cents || 0) -
     Number(totals.spent_all_time_cents || 0) -
+    Number(controlSummary.cash_refund_all_time_cents || 0) -
     Number(totals.remaining_cents || 0);
 
   balanceDifference.textContent = formatEuro(difference);
@@ -362,12 +398,20 @@ async function loadDashboard() {
   clearMessage(adminMessage);
   const period = getPeriod();
 
-  const [dashboardResult, stripeResult] = await Promise.all([
+  const [
+    dashboardResult,
+    stripeResult,
+    controlResult
+  ] = await Promise.all([
     supabaseClient.rpc("admin_get_dashboard", {
       p_from: period.from,
       p_to: period.to
     }),
     supabaseClient.rpc("admin_stripe_summary", {
+      p_from: period.from,
+      p_to: period.to
+    }),
+    supabaseClient.rpc("admin_control_summary", {
       p_from: period.from,
       p_to: period.to
     })
@@ -387,7 +431,7 @@ async function loadDashboard() {
   }
 
   const data = dashboardResult.data;
-  renderOverview(data, stripeResult.data || {});
+  renderOverview(data, stripeResult.data || {}, controlResult.data || {});
   renderCashierRanking(data.cashiers || []);
   renderStandRanking(data.stands || []);
   renderHourly(data.hourly || []);
@@ -519,6 +563,9 @@ function renderCustomers(rows) {
         <td>
           <strong>${formatEuro(row.balance_cents)}</strong>
           <small>${formatNumber(formatDivini(row.balance_cents))} Divini</small>
+          <small class="cash-refundable">
+            Contanti rimborsabili: ${formatEuro(row.refundable_cash_cents)}
+          </small>
         </td>
         <td>
           <strong>${escapeHtml(row.badge_code || "—")}</strong>
@@ -537,8 +584,17 @@ function renderCustomers(rows) {
             <button class="table-action" type="button" data-customer-action="password" data-id="${escapeHtml(row.user_id)}">
               Nuova password
             </button>
-            <button class="table-action" type="button" data-customer-action="block" data-id="${escapeHtml(row.user_id)}" data-blocked="${row.blocked}">
+            <button class="table-action" type="button" data-customer-action="refund" data-id="${escapeHtml(row.user_id)}" ${Number(row.refundable_cash_cents || 0) < 200 || row.deleted_at ? "disabled" : ""}>
+              Rimborso contanti
+            </button>
+            <button class="table-action" type="button" data-customer-action="gift" data-id="${escapeHtml(row.user_id)}" ${row.deleted_at ? "disabled" : ""}>
+              Ticket gratuito
+            </button>
+            <button class="table-action" type="button" data-customer-action="block" data-id="${escapeHtml(row.user_id)}" data-blocked="${row.blocked}" ${row.deleted_at ? "disabled" : ""}>
               ${row.blocked ? "Sblocca" : "Blocca"}
+            </button>
+            <button class="table-action table-action--danger" type="button" data-customer-action="delete" data-id="${escapeHtml(row.user_id)}">
+              ${row.deleted_at ? "Eliminato" : "Elimina"}
             </button>
           </div>
         </td>
@@ -555,8 +611,14 @@ function renderCustomers(rows) {
         showBadge(row);
       } else if (button.dataset.customerAction === "password") {
         await resetPassword(row.user_id, row.auth_email, button, true);
+      } else if (button.dataset.customerAction === "refund") {
+        openCashRefundModal(row);
+      } else if (button.dataset.customerAction === "gift") {
+        openFreeTicketModal(row);
       } else if (button.dataset.customerAction === "block") {
         await toggleWallet(row, button);
+      } else if (button.dataset.customerAction === "delete") {
+        await deleteCustomer(row, button);
       }
     });
   });
@@ -734,6 +796,355 @@ async function toggleWallet(row, button) {
   );
 
   await loadCustomers(customerQuery.value);
+}
+
+
+function initialsForCustomer(row) {
+  return `${String(row.first_name || "").slice(0, 1)}${String(row.last_name || "").slice(0, 1)}`.toUpperCase() || "ID";
+}
+
+function openCashRefundModal(row) {
+  selectedControlCustomer = row;
+  cashRefundForm.reset();
+  clearMessage(cashRefundMessage);
+
+  cashRefundInitials.textContent = initialsForCustomer(row);
+  cashRefundCustomer.textContent = `${row.first_name} ${row.last_name}`;
+  cashRefundTotalBalance.textContent = formatEuro(row.balance_cents);
+  cashRefundAvailable.textContent =
+    formatEuro(row.refundable_cash_cents);
+
+  cashRefundDivini.max = Math.floor(
+    Number(row.refundable_cash_cents || 0) /
+    APP_CONFIG.valoreDivinoCentesimi
+  );
+
+  updateCashRefundPreview();
+  openModal(cashRefundModal);
+  setTimeout(() => cashRefundDivini.focus(), 50);
+}
+
+function updateCashRefundPreview() {
+  const divini = Number(cashRefundDivini.value || 0);
+  const amountCents =
+    divini * APP_CONFIG.valoreDivinoCentesimi;
+  const balance = Number(
+    selectedControlCustomer?.balance_cents || 0
+  );
+
+  cashRefundAmount.textContent = formatEuro(amountCents);
+  cashRefundDiviniPreview.textContent =
+    `${divini} ${divini === 1 ? "Divino" : "Divini"}`;
+  cashRefundAfter.textContent = selectedControlCustomer
+    ? formatEuro(Math.max(balance - amountCents, 0))
+    : "—";
+}
+
+cashRefundDivini?.addEventListener(
+  "input",
+  updateCashRefundPreview
+);
+
+$$("[data-close-cash-refund]").forEach((element) => {
+  element.addEventListener("click", () => {
+    closeModal(cashRefundModal);
+  });
+});
+
+cashRefundForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  clearMessage(cashRefundMessage);
+
+  if (!selectedControlCustomer) return;
+
+  const divini = Number(cashRefundDivini.value || 0);
+  const amountCents =
+    divini * APP_CONFIG.valoreDivinoCentesimi;
+  const available = Number(
+    selectedControlCustomer.refundable_cash_cents || 0
+  );
+
+  if (!Number.isInteger(divini) || divini < 1) {
+    showMessage(
+      cashRefundMessage,
+      "Inserisci almeno 1 Divino.",
+      "error"
+    );
+    return;
+  }
+
+  if (amountCents > available) {
+    showMessage(
+      cashRefundMessage,
+      "L’importo supera il credito contante rimborsabile.",
+      "error"
+    );
+    return;
+  }
+
+  if (!cashRefundNote.value.trim()) {
+    showMessage(
+      cashRefundMessage,
+      "Inserisci la motivazione del rimborso.",
+      "error"
+    );
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Restituire ${formatEuro(amountCents)} in contanti a ${selectedControlCustomer.first_name} ${selectedControlCustomer.last_name}?`
+  );
+
+  if (!confirmed) return;
+
+  const submitButton =
+    cashRefundForm.querySelector('button[type="submit"]');
+
+  setButtonLoading(
+    submitButton,
+    true,
+    "Registrazione…"
+  );
+
+  const { data, error } = await supabaseClient.rpc(
+    "admin_cash_refund",
+    {
+      p_user_id: selectedControlCustomer.user_id,
+      p_amount_cents: amountCents,
+      p_idempotency_key: crypto.randomUUID(),
+      p_note: cashRefundNote.value.trim()
+    }
+  );
+
+  setButtonLoading(submitButton, false);
+
+  if (error) {
+    showMessage(
+      cashRefundMessage,
+      readableError(error),
+      "error"
+    );
+    return;
+  }
+
+  closeModal(cashRefundModal);
+  showMessage(
+    customersMessage,
+    `Rimborso contanti di ${formatEuro(data.amount_cents)} registrato.`,
+    "success"
+  );
+
+  await Promise.all([
+    loadCustomers(customerQuery.value),
+    loadDashboard(),
+    loadTransactions(100)
+  ]);
+});
+
+async function loadFreeTicketPresets() {
+  const { data, error } = await supabaseClient.rpc(
+    "admin_list_free_ticket_presets"
+  );
+
+  if (error) {
+    freeTicketPresetsContainer.innerHTML = `
+      <div class="empty-state">
+        <strong>Impossibile caricare gli importi</strong>
+      </div>
+    `;
+    return;
+  }
+
+  freeTicketPresets = data || [];
+  renderFreeTicketPresets();
+}
+
+function renderFreeTicketPresets() {
+  freeTicketPresetsContainer.innerHTML =
+    freeTicketPresets.length
+      ? freeTicketPresets.map((preset) => `
+        <button
+          type="button"
+          class="free-ticket-preset"
+          data-free-ticket-id="${escapeHtml(preset.preset_id)}"
+        >
+          <strong>${escapeHtml(preset.label)}</strong>
+          <span>${escapeHtml(formatEuro(preset.amount_cents))}</span>
+        </button>
+      `).join("")
+      : `
+        <div class="empty-state">
+          <strong>Nessun importo configurato</strong>
+        </div>
+      `;
+
+  $$("[data-free-ticket-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      selectedFreeTicketPreset = freeTicketPresets.find(
+        (preset) =>
+          preset.preset_id === button.dataset.freeTicketId
+      );
+
+      $$("[data-free-ticket-id]").forEach((item) => {
+        item.classList.toggle(
+          "is-active",
+          item === button
+        );
+      });
+
+      confirmFreeTicketButton.disabled =
+        !selectedFreeTicketPreset;
+      clearMessage(freeTicketMessage);
+    });
+  });
+}
+
+async function openFreeTicketModal(row) {
+  selectedControlCustomer = row;
+  selectedFreeTicketPreset = null;
+  freeTicketNote.value = "";
+  confirmFreeTicketButton.disabled = true;
+  clearMessage(freeTicketMessage);
+
+  freeTicketInitials.textContent = initialsForCustomer(row);
+  freeTicketCustomer.textContent =
+    `${row.first_name} ${row.last_name}`;
+
+  openModal(freeTicketModal);
+  await loadFreeTicketPresets();
+}
+
+$$("[data-close-free-ticket]").forEach((element) => {
+  element.addEventListener("click", () => {
+    closeModal(freeTicketModal);
+  });
+});
+
+confirmFreeTicketButton?.addEventListener(
+  "click",
+  async () => {
+    clearMessage(freeTicketMessage);
+
+    if (!selectedControlCustomer ||
+        !selectedFreeTicketPreset) {
+      showMessage(
+        freeTicketMessage,
+        "Seleziona un importo.",
+        "error"
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Assegnare gratuitamente ${selectedFreeTicketPreset.label} a ${selectedControlCustomer.first_name} ${selectedControlCustomer.last_name}?`
+    );
+
+    if (!confirmed) return;
+
+    setButtonLoading(
+      confirmFreeTicketButton,
+      true,
+      "Assegnazione…"
+    );
+
+    const { data, error } = await supabaseClient.rpc(
+      "admin_grant_free_ticket",
+      {
+        p_user_id: selectedControlCustomer.user_id,
+        p_preset_id: selectedFreeTicketPreset.preset_id,
+        p_idempotency_key: crypto.randomUUID(),
+        p_note: freeTicketNote.value.trim() || null
+      }
+    );
+
+    setButtonLoading(
+      confirmFreeTicketButton,
+      false
+    );
+
+    if (error) {
+      showMessage(
+        freeTicketMessage,
+        readableError(error),
+        "error"
+      );
+      return;
+    }
+
+    closeModal(freeTicketModal);
+    showMessage(
+      customersMessage,
+      `Ticket gratuito di ${formatEuro(data.amount_cents)} assegnato.`,
+      "success"
+    );
+
+    await Promise.all([
+      loadCustomers(customerQuery.value),
+      loadDashboard(),
+      loadTransactions(100)
+    ]);
+  }
+);
+
+async function deleteCustomer(row, button) {
+  if (row.deleted_at) {
+    showMessage(
+      customersMessage,
+      "Questo cliente è già stato eliminato e anonimizzato.",
+      "info"
+    );
+    return;
+  }
+
+  if (Number(row.balance_cents || 0) !== 0) {
+    showMessage(
+      customersMessage,
+      "Prima di eliminare il cliente il saldo deve essere portato a zero.",
+      "error"
+    );
+    return;
+  }
+
+  const explanation = row.can_hard_delete
+    ? "L’account non ha movimenti e sarà eliminato definitivamente."
+    : "L’account ha movimenti contabili: i dati personali saranno anonimizzati, ma lo storico economico resterà disponibile.";
+
+  const confirmed = window.confirm(
+    `Eliminare ${row.first_name} ${row.last_name}?\n\n${explanation}`
+  );
+
+  if (!confirmed) return;
+
+  setButtonLoading(button, true, "…");
+
+  try {
+    const result = await invokeAdminFunction({
+      action: "delete_customer",
+      user_id: row.user_id
+    });
+
+    showMessage(
+      customersMessage,
+      result.mode === "deleted"
+        ? "Cliente eliminato definitivamente."
+        : "Cliente disattivato e anonimizzato; storico contabile conservato.",
+      "success"
+    );
+
+    await Promise.all([
+      loadCustomers(customerQuery.value),
+      loadDashboard(),
+      loadTransactions(100)
+    ]);
+  } catch (error) {
+    showMessage(
+      customersMessage,
+      readableError(error),
+      "error"
+    );
+  } finally {
+    setButtonLoading(button, false);
+  }
 }
 
 function roleLabel(role) {
@@ -1025,13 +1436,37 @@ function downloadCredentials() {
 downloadCredentialsButton.addEventListener("click", downloadCredentials);
 downloadCredentialsModalButton.addEventListener("click", downloadCredentials);
 
-function transactionTypeLabel(type) {
+function transactionTypeLabel(row) {
+  if (
+    row.type === "storno" &&
+    row.payment_method === "contanti"
+  ) {
+    return "Rimborso contanti";
+  }
+
+  if (
+    row.type === "ricarica" &&
+    row.payment_method === "omaggio"
+  ) {
+    return "Ticket gratuito";
+  }
+
   return {
     ricarica: "Ricarica",
     pagamento: "Pagamento",
     storno: "Storno",
     rettifica: "Rettifica"
-  }[type] || type;
+  }[row.type] || row.type;
+}
+
+function isNegativeTransaction(row) {
+  return (
+    row.type === "pagamento" ||
+    (
+      row.type === "storno" &&
+      row.payment_method === "contanti"
+    )
+  );
 }
 
 function renderTransactions(rows) {
@@ -1039,7 +1474,7 @@ function renderTransactions(rows) {
     ? rows.map((row) => `
       <tr>
         <td>${escapeHtml(formatDateTime(row.created_at))}</td>
-        <td><span class="transaction-chip transaction-chip--${escapeHtml(row.type)}">${escapeHtml(transactionTypeLabel(row.type))}</span></td>
+        <td><span class="transaction-chip transaction-chip--${escapeHtml(row.type)}">${escapeHtml(transactionTypeLabel(row))}</span></td>
         <td>${escapeHtml(row.customer_label)}</td>
         <td>
           <strong>${escapeHtml(row.position_name || "—")}</strong>
@@ -1047,8 +1482,8 @@ function renderTransactions(rows) {
         </td>
         <td>${escapeHtml(row.operator_label || "—")}</td>
         <td>${escapeHtml(row.payment_method || "—")}</td>
-        <td class="${row.type === "pagamento" ? "amount-negative" : "amount-positive"}">
-          ${row.type === "pagamento" ? "−" : "+"}${formatEuro(row.amount_cents)}
+        <td class="${isNegativeTransaction(row) ? "amount-negative" : "amount-positive"}">
+          ${isNegativeTransaction(row) ? "−" : "+"}${formatEuro(row.amount_cents)}
         </td>
         <td>${formatEuro(row.balance_after_cents)}</td>
       </tr>
@@ -1109,7 +1544,7 @@ exportTransactionsButton.addEventListener("click", async () => {
       ],
       ...(data || []).map((row) => [
         formatDateTime(row.created_at),
-        transactionTypeLabel(row.type),
+        transactionTypeLabel(row),
         row.customer_label,
         row.position_name || "",
         row.position_code || "",
