@@ -38,6 +38,66 @@
       </div>
     </section>
 
+
+    <section class="panel stripe-recharge-panel">
+      <div class="panel-heading">
+        <div>
+          <span class="eyebrow">Ricarica online</span>
+          <h2>Carica i tuoi Divini</h2>
+        </div>
+        <span class="secure-chip">Pagamento Stripe</span>
+      </div>
+
+      <p class="stripe-recharge-intro">
+        Scegli l’importo. Verrai trasferito alla pagina sicura di Stripe per pagare con carta.
+      </p>
+
+      <div class="stripe-amounts" id="stripe-amounts">
+        <button type="button" class="stripe-amount-button" data-stripe-amount="1000">
+          <strong>10 €</strong>
+          <span>5 Divini</span>
+        </button>
+        <button type="button" class="stripe-amount-button" data-stripe-amount="2000">
+          <strong>20 €</strong>
+          <span>10 Divini</span>
+        </button>
+        <button type="button" class="stripe-amount-button" data-stripe-amount="3000">
+          <strong>30 €</strong>
+          <span>15 Divini</span>
+        </button>
+        <button type="button" class="stripe-amount-button" data-stripe-amount="5000">
+          <strong>50 €</strong>
+          <span>25 Divini</span>
+        </button>
+      </div>
+
+      <div class="stripe-recharge-summary">
+        <div>
+          <span>Importo scelto</span>
+          <strong id="stripe-selected-amount">—</strong>
+        </div>
+        <div>
+          <span>Credito ricevuto</span>
+          <strong id="stripe-selected-divini">—</strong>
+        </div>
+      </div>
+
+      <div id="stripe-message" class="form-message" aria-live="polite"></div>
+
+      <button
+        class="button button--primary button--full"
+        type="button"
+        id="stripe-checkout-button"
+        disabled
+      >
+        Continua su Stripe
+      </button>
+
+      <p class="field-help stripe-security-note">
+        L’accredito avviene soltanto dopo la conferma firmata di Stripe. I dati della carta non vengono salvati da Indivino.
+      </p>
+    </section>
+
     <section class="dashboard-grid">
       <article class="panel qr-panel">
         <div class="panel-heading">
@@ -74,7 +134,7 @@
     </section>
 
     <div class="demo-notice" id="page-message">
-      Portafoglio collegato in modo sicuro a Supabase. In questa fase il saldo parte da zero; la ricarica verrà attivata con il modulo cassa.
+      Puoi ricaricare alla cassa oppure online tramite Stripe. Il saldo viene aggiornato soltanto dopo la conferma effettiva del pagamento.
     </div>
   </main>
 

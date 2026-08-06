@@ -1,21 +1,12 @@
-# I Divini Digitali — Step 6
+# I Divini Digitali — Step 7 Stripe
 
-Amministrazione avanzata:
+Aggiunge ricariche autonome per i clienti autenticati mediante Stripe Checkout.
 
-- 20 casse e 15 stand rinominabili;
-- responsabili;
-- clienti;
-- badge;
-- QR;
-- stampa;
-- creazione senza email;
-- recupero tramite reset password;
-- generazione operatori robusta.
+File principali:
 
-Eseguire:
+- `sql/10_database_stripe.sql`
+- `supabase/functions/stripe-create-checkout/index.ts`
+- `supabase/functions/stripe-webhook/index.ts`
+- `STEP7-STRIPE-INSTRUCTIONS.md`
 
-`sql/09_positions_customers_badges.sql`
-
-Poi sostituire la funzione:
-
-`supabase/functions/admin-staff/index.ts`
+Configurare e collaudare prima in modalità Stripe TEST.
