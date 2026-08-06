@@ -63,17 +63,30 @@ async function requireCustomer(req: Request) {
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, first_name, last_name, email, contact_email, role, active")
+    .select("id, first_name, last_name, email, contact_email, role, active, deleted_at")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (
-    profileError ||
-    !profile ||
-    profile.role !== "cliente" ||
-    profile.active !== true
-  ) {
-    throw new Error("Account cliente non disponibile.");
+  if (profileError) {
+    throw new Error(
+      `Errore lettura profilo cliente: ${profileError.message}`
+    );
+  }
+
+  if (!profile) {
+    throw new Error(
+      `Profilo non trovato per l’account ${user.email || user.id}.`
+    );
+  }
+
+  if (profile.role !== "cliente") {
+    throw new Error(
+      `Ruolo account non valido: risulta “${profile.role}” invece di “cliente”.`
+    );
+  }
+
+  if (profile.active !== true || profile.deleted_at) {
+    throw new Error("Account cliente presente ma disattivato.");
   }
 
   const { data: wallet, error: walletError } = await adminClient
