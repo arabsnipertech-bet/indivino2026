@@ -48,6 +48,7 @@
       <a href="#clienti">Clienti e badge</a>
       <a href="#operatori">Operatori</a>
       <a href="#movimenti">Movimenti</a>
+      <a href="#installa-app">Installa app</a>
     </nav>
 
     <section class="panel admin-filter-panel" id="riepilogo">
@@ -238,7 +239,7 @@
             <tr>
               <th>Codice</th>
               <th>Nome visualizzato</th>
-              <th>Responsabile</th>
+              <th>Responsabile / accesso</th>
               <th>Tipo</th>
               <th>Stato</th>
               <th>Azione</th>
@@ -401,6 +402,36 @@
       </div>
     </section>
 
+
+    <section class="panel admin-install-panel" id="installa-app">
+      <div class="panel-heading admin-install-heading">
+        <div>
+          <span class="eyebrow">Distribuzione rapida</span>
+          <h2>QR per installare I Divini Digitali</h2>
+          <p>
+            Il QR apre una pagina guidata. Su Android compare il pulsante di installazione; su iPhone vengono mostrate le istruzioni per aggiungere l’app alla schermata Home.
+          </p>
+        </div>
+        <button class="button button--secondary" type="button" id="print-install-qr">
+          Stampa QR
+        </button>
+      </div>
+
+      <div class="admin-install-grid">
+        <div class="admin-install-qr" id="install-app-qr"></div>
+        <div class="admin-install-copy">
+          <strong>Scansiona e installa</strong>
+          <p>
+            Dopo l’installazione l’utente troverà l’icona di Indivino tra le normali app del telefono.
+          </p>
+          <code id="install-app-url">—</code>
+          <a class="button button--primary" id="open-install-page" href="/installa" target="_blank" rel="noopener">
+            Apri pagina installazione
+          </a>
+        </div>
+      </div>
+    </section>
+
     <div id="page-message" class="demo-notice">
       Le password esistenti non possono essere lette: possono soltanto essere sostituite con una nuova password temporanea.
     </div>
@@ -422,14 +453,81 @@
         <label for="position-name">Nome visualizzato</label>
         <input id="position-name" name="name" type="text" maxlength="100" required>
 
-        <label for="position-responsible">Responsabile</label>
+        <label for="position-responsible">Responsabile visualizzato</label>
         <input
           id="position-responsible"
           name="responsible_name"
           type="text"
           maxlength="120"
-          placeholder="Es. Mario Rossi"
+          placeholder="Es. Annalisa Rossi"
         >
+
+        <section class="position-operator-box">
+          <div class="position-operator-current">
+            <span>Accesso operativo attuale</span>
+            <strong id="position-current-operator">Nessun profilo associato</strong>
+            <small id="position-current-login">—</small>
+          </div>
+
+          <label class="check-row position-create-toggle">
+            <input type="checkbox" id="position-create-operator">
+            <span>Crea e collega un nuovo profilo responsabile</span>
+          </label>
+
+          <div id="position-operator-fields" class="position-operator-fields is-hidden">
+            <div class="form-row">
+              <div>
+                <label for="position-operator-first-name">Nome</label>
+                <input
+                  id="position-operator-first-name"
+                  type="text"
+                  maxlength="80"
+                  placeholder="Annalisa"
+                >
+              </div>
+              <div>
+                <label for="position-operator-last-name">Cognome</label>
+                <input
+                  id="position-operator-last-name"
+                  type="text"
+                  maxlength="80"
+                  placeholder="Rossi"
+                >
+              </div>
+            </div>
+
+            <label for="position-access-code">Codice accesso</label>
+            <div class="access-code-field">
+              <input
+                id="position-access-code"
+                type="text"
+                maxlength="40"
+                autocomplete="off"
+                placeholder="annalisa"
+              >
+              <span>@operatori.indivino2026.it</span>
+            </div>
+            <p class="field-help">
+              Sul telefono il responsabile potrà scrivere soltanto il codice, per esempio <strong>annalisa</strong>, e la password.
+            </p>
+
+            <label for="position-operator-password">Password iniziale</label>
+            <div class="password-field">
+              <input
+                id="position-operator-password"
+                type="password"
+                minlength="8"
+                autocomplete="new-password"
+                placeholder="Lascia vuoto per generarla automaticamente"
+              >
+              <button type="button" class="password-toggle" data-position-password-toggle>Mostra</button>
+            </div>
+
+            <div class="operator-replacement-warning">
+              Creando un nuovo responsabile, il precedente profilo operativo della stessa postazione viene disattivato. L’amministratore della Cassa 01 resta comunque attivo.
+            </div>
+          </div>
+        </section>
 
         <div id="position-modal-message" class="form-message" aria-live="polite"></div>
 

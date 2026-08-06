@@ -26,11 +26,20 @@
       <form id="login-form" novalidate>
         <div class="form-heading">
           <h2>Accesso</h2>
-          <p>Inserisci le credenziali utilizzate in fase di registrazione.</p>
+          <p>I clienti usano l’email. Casse e stand possono usare il codice accesso creato dall’amministratore.</p>
         </div>
 
-        <label for="email">Email</label>
-        <input id="email" name="email" type="email" autocomplete="email" placeholder="nome@email.it" required>
+        <label for="email">Email o codice accesso</label>
+        <input
+          id="email"
+          name="email"
+          type="text"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
+          placeholder="nome@email.it oppure annalisa"
+          required
+        >
 
         <label for="password">Password</label>
         <div class="password-field">
@@ -47,7 +56,6 @@
     </section>
   </main>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script type="module" src="/js/auth.js"></script>
 </body>
