@@ -2118,7 +2118,25 @@ button:disabled {
   }
 
   .admin-header-actions .button:first-child {
-    display: none;
+    display: inline-flex;
+  }
+
+  .dashboard-header {
+    gap: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .admin-header-actions {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .admin-header-actions .button {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: .82rem;
+    white-space: nowrap;
   }
 
   .admin-overview {
@@ -2505,6 +2523,121 @@ button:disabled {
   }
 
   .admin-overview {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
+@media (max-width: 470px) {
+  .admin-page .dashboard-brand span {
+    display: none;
+  }
+
+  .admin-page .dashboard-brand {
+    gap: 0;
+  }
+
+  .admin-page .dashboard-brand img {
+    width: 44px;
+    height: 48px;
+  }
+
+  .admin-header-actions .button {
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+}
+
+
+/* ============================================================
+   STEP 8 — CONTROLLI ECONOMICI
+   ============================================================ */
+
+.admin-overview {
+  grid-template-columns: repeat(9, 1fr);
+}
+
+.cash-refundable {
+  margin-top: 6px !important;
+  color: #27623a !important;
+  font-weight: 800;
+}
+
+.table-action:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.table-action--danger {
+  color: #8e1f2e;
+  background: #fdecef;
+  border-color: #efc4ca;
+}
+
+.free-ticket-presets {
+  margin: 20px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.free-ticket-preset {
+  min-height: 80px;
+  padding: 13px;
+  color: var(--wine-800);
+  background: #faf3f1;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.free-ticket-preset strong,
+.free-ticket-preset span {
+  display: block;
+}
+
+.free-ticket-preset strong {
+  font-size: 1.05rem;
+}
+
+.free-ticket-preset span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.free-ticket-preset.is-active {
+  color: white;
+  background: linear-gradient(
+    135deg,
+    var(--wine-950),
+    var(--wine-700)
+  );
+  border-color: var(--wine-800);
+}
+
+.free-ticket-preset.is-active span {
+  color: var(--gold);
+}
+
+@media (max-width: 1500px) {
+  .admin-overview {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-overview {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .admin-overview {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .free-ticket-presets {
     grid-template-columns: 1fr 1fr;
   }
 }
