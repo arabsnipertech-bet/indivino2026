@@ -67,6 +67,28 @@ function generatePassword(length = 14) {
   return chars.join("");
 }
 
+
+function normalizeAccessCode(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "");
+}
+
+function validateAccessCode(value: string) {
+  if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(value)) {
+    throw new Error(
+      "Il codice accesso deve contenere 3–40 caratteri: lettere minuscole, numeri, punto, trattino o underscore."
+    );
+  }
+
+  if (value.includes("@")) {
+    throw new Error(
+      "Inserisci soltanto il codice accesso, senza @ e senza dominio."
+    );
+  }
+}
+
 function generateBadgeCode() {
   const random = crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
   return `IV26-${random}`;
@@ -114,7 +136,7 @@ async function getPosition(type: PositionType, code: string) {
 
   const { data, error } = await adminClient
     .from(table)
-    .select("id, code, name")
+    .select("id, code, name, primary_operator_id")
     .eq("code", code)
     .eq("active", true)
     .single();
@@ -563,6 +585,193 @@ async function deleteCustomer(userId: string) {
   };
 }
 
+
+async function deactivateOtherPositionOperators(
+  type: PositionType,
+  positionId: string,
+  keepUserId: string
+) {
+  const table =
+    type === "cassa"
+      ? "cashier_operators"
+      : "stand_operators";
+
+  const foreignKey =
+    type === "cassa"
+      ? "cashier_station_id"
+      : "stand_id";
+
+  const { data: assigned, error: assignedError } =
+    await adminClient
+      .from(table)
+      .select("user_id")
+      .eq(foreignKey, positionId)
+      .neq("user_id", keepUserId);
+
+  if (assignedError) throw assignedError;
+
+  for (const item of assigned || []) {
+    const { data: profile, error: profileError } =
+      await adminClient
+        .from("profiles")
+        .select("role")
+        .eq("id", item.user_id)
+        .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    // L'amministratore resta sempre abilitato a CASSA01.
+    if (profile?.role === "admin") {
+      continue;
+    }
+
+    const { error: profileUpdateError } =
+      await adminClient
+        .from("profiles")
+        .update({ active: false })
+        .eq("id", item.user_id);
+
+    if (profileUpdateError) throw profileUpdateError;
+
+    const { error: assignmentUpdateError } =
+      await adminClient
+        .from(table)
+        .update({ active: false })
+        .eq("user_id", item.user_id);
+
+    if (assignmentUpdateError) {
+      throw assignmentUpdateError;
+    }
+  }
+}
+
+async function createPositionOperator(
+  body: Record<string, unknown>
+) {
+  const type = String(body.type || "") as PositionType;
+  const code = String(body.code || "").trim().toUpperCase();
+  const firstName = String(body.first_name || "").trim();
+  const lastName = String(body.last_name || "").trim();
+  const accessCode = normalizeAccessCode(body.access_code);
+  const suppliedPassword = String(body.password || "");
+
+  if (!["cassa", "stand"].includes(type)) {
+    throw new Error("Tipo postazione non valido.");
+  }
+
+  if (!firstName || !lastName) {
+    throw new Error("Nome e cognome del responsabile sono obbligatori.");
+  }
+
+  if (firstName.length > 80 || lastName.length > 80) {
+    throw new Error("Nome o cognome troppo lungo.");
+  }
+
+  validateAccessCode(accessCode);
+
+  if (
+    suppliedPassword &&
+    suppliedPassword.length < 8
+  ) {
+    throw new Error(
+      "La password scelta deve contenere almeno 8 caratteri."
+    );
+  }
+
+  const position = await getPosition(type, code);
+  const email = `${accessCode}@operatori.indivino2026.it`;
+
+  const { data: duplicate, error: duplicateError } =
+    await adminClient
+      .from("profiles")
+      .select("id, first_name, last_name, email, access_code")
+      .or(`access_code.eq.${accessCode},email.eq.${email}`)
+      .maybeSingle();
+
+  if (duplicateError) throw duplicateError;
+
+  if (duplicate) {
+    throw new Error(
+      `Il codice accesso “${accessCode}” è già utilizzato da ${duplicate.first_name} ${duplicate.last_name}.`
+    );
+  }
+
+  const password =
+    suppliedPassword || generatePassword();
+
+  const { data: created, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nome: firstName,
+        cognome: lastName,
+        account_type: "staff",
+        access_code: accessCode
+      }
+    });
+
+  if (createError || !created.user) {
+    throw createError ||
+      new Error("Creazione operatore non riuscita.");
+  }
+
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      role: type,
+      active: true,
+      customer_source: "staff",
+      contact_email: null,
+      badge_code: null,
+      access_code: accessCode
+    })
+    .eq("id", created.user.id);
+
+  if (profileError) throw profileError;
+
+  await assignPosition(
+    created.user.id,
+    type,
+    position.id
+  );
+
+  await deactivateOtherPositionOperators(
+    type,
+    position.id,
+    created.user.id
+  );
+
+  const responsibleName =
+    `${firstName} ${lastName}`.trim();
+
+  const { error: primaryError } = await adminClient.rpc(
+    "admin_set_primary_position_operator",
+    {
+      p_position_type: type,
+      p_code: code,
+      p_user_id: created.user.id,
+      p_responsible_name: responsibleName
+    }
+  );
+
+  if (primaryError) throw primaryError;
+
+  return {
+    created: true,
+    email,
+    access_code: accessCode,
+    password,
+    role: type,
+    position_code: code,
+    position_name: position.name,
+    responsible_name: responsibleName
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return response({ ok: true });
@@ -601,6 +810,12 @@ Deno.serve(async (req: Request) => {
     if (action === "delete_customer") {
       return response(
         await deleteCustomer(String(body?.user_id || ""))
+      );
+    }
+
+    if (action === "create_position_operator") {
+      return response(
+        await createPositionOperator(body)
       );
     }
 
