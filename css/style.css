@@ -2374,3 +2374,137 @@ button:disabled {
     font-size: .78rem;
   }
 }
+
+
+/* ============================================================
+   STEP 7 — RICARICA ONLINE STRIPE
+   ============================================================ */
+
+.stripe-recharge-panel {
+  margin: 24px 0;
+  border-color: #d9cad0;
+}
+
+.stripe-recharge-intro {
+  max-width: 760px;
+  margin: 16px 0 20px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.stripe-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stripe-amount-button {
+  min-height: 92px;
+  padding: 14px;
+  color: var(--wine-800);
+  background: #fbf5f3;
+  border: 1px solid #e5d5d8;
+  border-radius: 15px;
+  cursor: pointer;
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease;
+}
+
+.stripe-amount-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--wine-700);
+}
+
+.stripe-amount-button strong,
+.stripe-amount-button span {
+  display: block;
+}
+
+.stripe-amount-button strong {
+  font-size: 1.55rem;
+}
+
+.stripe-amount-button span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.stripe-amount-button.is-active {
+  color: white;
+  background: linear-gradient(135deg, var(--wine-950), var(--wine-700));
+  border-color: var(--wine-800);
+}
+
+.stripe-amount-button.is-active span {
+  color: var(--gold);
+}
+
+.stripe-recharge-summary {
+  margin: 18px 0;
+  padding: 17px;
+  background: #f8f2ef;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stripe-recharge-summary div:last-child {
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.stripe-recharge-summary span,
+.stripe-recharge-summary strong {
+  display: block;
+}
+
+.stripe-recharge-summary span {
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.stripe-recharge-summary strong {
+  margin-top: 4px;
+  color: var(--wine-800);
+  font-size: 1.35rem;
+}
+
+.stripe-security-note {
+  margin-top: 13px;
+  text-align: center;
+}
+
+.admin-overview {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+@media (max-width: 1400px) {
+  .admin-overview {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .stripe-amounts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stripe-recharge-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .stripe-recharge-summary div:last-child {
+    padding: 14px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .admin-overview {
+    grid-template-columns: 1fr 1fr;
+  }
+}
