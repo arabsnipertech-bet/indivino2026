@@ -21,6 +21,7 @@ const totalSpent = $("#total-spent");
 const totalRemaining = $("#total-remaining");
 const totalCash = $("#total-cash");
 const totalPos = $("#total-pos");
+const totalStripe = $("#total-stripe");
 const rechargeCount = $("#recharge-count");
 const paymentCount = $("#payment-count");
 const remainingDivini = $("#remaining-divini");
@@ -255,7 +256,7 @@ async function invokeAdminFunction(body) {
   return data;
 }
 
-function renderOverview(data) {
+function renderOverview(data, stripeSummary = {}) {
   const totals = data?.totals || {};
   const staff = data?.staff || {};
 
@@ -265,6 +266,7 @@ function renderOverview(data) {
   totalRemaining.textContent = formatEuro(totals.remaining_cents);
   totalCash.textContent = formatEuro(totals.cash_cents);
   totalPos.textContent = formatEuro(totals.pos_cents);
+  totalStripe.textContent = formatEuro(stripeSummary.stripe_cents);
 
   rechargeCount.textContent = `${formatNumber(totals.recharge_count)} ricariche`;
   paymentCount.textContent = `${formatNumber(totals.payment_count)} pagamenti`;
@@ -360,17 +362,32 @@ async function loadDashboard() {
   clearMessage(adminMessage);
   const period = getPeriod();
 
-  const { data, error } = await supabaseClient.rpc("admin_get_dashboard", {
-    p_from: period.from,
-    p_to: period.to
-  });
+  const [dashboardResult, stripeResult] = await Promise.all([
+    supabaseClient.rpc("admin_get_dashboard", {
+      p_from: period.from,
+      p_to: period.to
+    }),
+    supabaseClient.rpc("admin_stripe_summary", {
+      p_from: period.from,
+      p_to: period.to
+    })
+  ]);
 
-  if (error) {
-    showMessage(adminMessage, readableError(error), "error");
+  if (dashboardResult.error) {
+    showMessage(
+      adminMessage,
+      readableError(dashboardResult.error),
+      "error"
+    );
     return;
   }
 
-  renderOverview(data);
+  if (stripeResult.error) {
+    console.error("Errore riepilogo Stripe:", stripeResult.error);
+  }
+
+  const data = dashboardResult.data;
+  renderOverview(data, stripeResult.data || {});
   renderCashierRanking(data.cashiers || []);
   renderStandRanking(data.stands || []);
   renderHourly(data.hourly || []);

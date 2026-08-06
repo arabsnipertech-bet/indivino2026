@@ -10,6 +10,16 @@ const qrTokenText = document.querySelector("#qr-token-text");
 const movements = document.querySelector("#movement-list");
 const pageMessage = document.querySelector("#page-message");
 const logoutButton = document.querySelector("#logout-button");
+const stripeAmountButtons = [
+  ...document.querySelectorAll(".stripe-amount-button")
+];
+const stripeSelectedAmount = document.querySelector("#stripe-selected-amount");
+const stripeSelectedDivini = document.querySelector("#stripe-selected-divini");
+const stripeCheckoutButton = document.querySelector("#stripe-checkout-button");
+const stripeMessage = document.querySelector("#stripe-message");
+
+let selectedStripeAmountCents = 0;
+let currentWallet = null;
 
 function formatEuro(cents) {
   return new Intl.NumberFormat(APP_CONFIG.locale, {
@@ -31,11 +41,41 @@ function showPageError(text) {
   pageMessage.className = "demo-notice demo-notice--error";
 }
 
+function showStripeMessage(text, type = "info") {
+  if (!stripeMessage) return;
+  stripeMessage.textContent = text;
+  stripeMessage.className = `form-message is-visible is-${type}`;
+}
+
+function clearStripeMessage() {
+  if (!stripeMessage) return;
+  stripeMessage.textContent = "";
+  stripeMessage.className = "form-message";
+}
+
+function setStripeButtonLoading(loading) {
+  if (!stripeCheckoutButton) return;
+
+  if (!stripeCheckoutButton.dataset.originalText) {
+    stripeCheckoutButton.dataset.originalText =
+      stripeCheckoutButton.textContent;
+  }
+
+  stripeCheckoutButton.disabled = loading || !selectedStripeAmountCents;
+  stripeCheckoutButton.textContent = loading
+    ? "Apertura pagamento sicuro…"
+    : stripeCheckoutButton.dataset.originalText;
+}
+
 function transactionLabel(row) {
   if (row.type === "pagamento") {
     return row.stand?.name
       ? `Pagamento · ${row.stand.name}`
       : "Pagamento stand";
+  }
+
+  if (row.type === "ricarica" && row.payment_method === "stripe") {
+    return "Ricarica online · Stripe";
   }
 
   const labels = {
@@ -173,11 +213,12 @@ async function loadDashboard() {
     diviniElement.textContent = `${quantity} ${quantity === "1" ? "Divino" : "Divini"}`;
   }
 
+  currentWallet = wallet;
   renderQr(wallet.qr_token);
 
   const { data: transactionRows, error: transactionError } = await supabaseClient
     .from("transactions")
-    .select("id, type, amount_cents, created_at, stand:stands(name)")
+    .select("id, type, amount_cents, payment_method, created_at, stand:stands(name)")
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -195,7 +236,7 @@ async function loadDashboard() {
 
     const retry = await supabaseClient
       .from("transactions")
-      .select("id, type, amount_cents, created_at, stand:stands(name)")
+      .select("id, type, amount_cents, payment_method, created_at, stand:stands(name)")
       .eq("wallet_id", walletWithId.id)
       .order("created_at", { ascending: false })
       .limit(10);
@@ -207,6 +248,164 @@ async function loadDashboard() {
   }
 }
 
+
+function chooseStripeAmount(amountCents) {
+  selectedStripeAmountCents = Number(amountCents || 0);
+  clearStripeMessage();
+
+  stripeAmountButtons.forEach((button) => {
+    button.classList.toggle(
+      "is-active",
+      Number(button.dataset.stripeAmount) === selectedStripeAmountCents
+    );
+  });
+
+  if (stripeSelectedAmount) {
+    stripeSelectedAmount.textContent = formatEuro(selectedStripeAmountCents);
+  }
+
+  if (stripeSelectedDivini) {
+    stripeSelectedDivini.textContent =
+      `${formatDivini(selectedStripeAmountCents)} Divini`;
+  }
+
+  if (stripeCheckoutButton) {
+    stripeCheckoutButton.disabled = !selectedStripeAmountCents;
+  }
+}
+
+stripeAmountButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    chooseStripeAmount(button.dataset.stripeAmount);
+  });
+});
+
+stripeCheckoutButton?.addEventListener("click", async () => {
+  clearStripeMessage();
+
+  if (!selectedStripeAmountCents) {
+    showStripeMessage("Scegli prima un importo.", "error");
+    return;
+  }
+
+  if (currentWallet?.blocked) {
+    showStripeMessage(
+      "Il portafoglio è bloccato. Rivolgiti all’amministrazione.",
+      "error"
+    );
+    return;
+  }
+
+  setStripeButtonLoading(true);
+  const requestId = crypto.randomUUID();
+
+  try {
+    const { data, error } = await supabaseClient.functions.invoke(
+      "stripe-create-checkout",
+      {
+        body: {
+          amount_cents: selectedStripeAmountCents,
+          request_id: requestId
+        }
+      }
+    );
+
+    if (error) {
+      let detail = error.message || "Impossibile avviare il pagamento.";
+
+      try {
+        if (error.context && typeof error.context.json === "function") {
+          const payload = await error.context.json();
+          detail = payload?.error || payload?.message || detail;
+        }
+      } catch {
+        // Mantiene il messaggio disponibile.
+      }
+
+      throw new Error(detail);
+    }
+
+    if (!data?.url) {
+      throw new Error("Stripe non ha restituito la pagina di pagamento.");
+    }
+
+    window.location.assign(data.url);
+  } catch (error) {
+    console.error("Errore Stripe Checkout:", error);
+    showStripeMessage(
+      error?.message || "Impossibile avviare la ricarica online.",
+      "error"
+    );
+    setStripeButtonLoading(false);
+  }
+});
+
+async function waitForStripeCredit(sessionId) {
+  showStripeMessage(
+    "Pagamento ricevuto. Attendo la conferma e aggiorno il saldo…",
+    "info"
+  );
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const { data, error } = await supabaseClient
+      .from("stripe_payments")
+      .select("status, amount_cents, paid_at")
+      .eq("checkout_session_id", sessionId)
+      .maybeSingle();
+
+    if (!error && data?.status === "paid") {
+      showStripeMessage(
+        `Ricarica di ${formatEuro(data.amount_cents)} completata.`,
+        "success"
+      );
+
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("stripe");
+      cleanUrl.searchParams.delete("session_id");
+      window.history.replaceState({}, "", cleanUrl.pathname);
+
+      await loadDashboard();
+      return;
+    }
+
+    if (!error && ["failed", "expired", "cancelled"].includes(data?.status)) {
+      showStripeMessage(
+        "Il pagamento non è stato completato. Il saldo non è stato modificato.",
+        "error"
+      );
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  showStripeMessage(
+    "Il pagamento risulta ricevuto, ma l’aggiornamento sta impiegando più tempo del previsto. Aggiorna la pagina tra qualche secondo.",
+    "info"
+  );
+}
+
+async function handleStripeReturn() {
+  const url = new URL(window.location.href);
+  const result = url.searchParams.get("stripe");
+  const sessionId = url.searchParams.get("session_id");
+
+  if (result === "success" && sessionId) {
+    await waitForStripeCredit(sessionId);
+    return;
+  }
+
+  if (result === "cancelled") {
+    showStripeMessage(
+      "Pagamento annullato. Nessun importo è stato addebitato al portafoglio.",
+      "info"
+    );
+
+    url.searchParams.delete("stripe");
+    window.history.replaceState({}, "", url.pathname);
+  }
+}
+
 logoutButton?.addEventListener("click", async () => {
   logoutButton.disabled = true;
   await supabaseClient.auth.signOut();
@@ -215,6 +414,7 @@ logoutButton?.addEventListener("click", async () => {
 
 try {
   await loadDashboard();
+  await handleStripeReturn();
 } catch (error) {
   console.error("Errore area cliente:", error);
   showPageError(
