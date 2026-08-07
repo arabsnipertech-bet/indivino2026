@@ -26,6 +26,8 @@ const totalFreeTickets = $("#total-free-tickets");
 const freeTicketCount = $("#free-ticket-count");
 const totalCashRefunds = $("#total-cash-refunds");
 const cashRefundCount = $("#cash-refund-count");
+const totalManualCorrections = $("#total-manual-corrections");
+const manualCorrectionCount = $("#manual-correction-count");
 const rechargeCount = $("#recharge-count");
 const paymentCount = $("#payment-count");
 const remainingDivini = $("#remaining-divini");
@@ -78,6 +80,23 @@ const badgeLoginEmail = $("#badge-login-email");
 const badgePassword = $("#badge-password");
 const badgeToken = $("#badge-token");
 const printBadgeButton = $("#print-badge");
+
+const rechargeCorrectionModal = $("#recharge-correction-modal");
+const rechargeCorrectionForm = $("#recharge-correction-form");
+const rechargeCorrectionInitials = $("#recharge-correction-initials");
+const rechargeCorrectionCustomer = $("#recharge-correction-customer");
+const manualRechargeList = $("#manual-recharge-list");
+const correctionSelectedDate = $("#correction-selected-date");
+const correctionSelectedPosition = $("#correction-selected-position");
+const correctionSelectedMethod = $("#correction-selected-method");
+const correctionOriginalAmount = $("#correction-original-amount");
+const correctionCurrentAmount = $("#correction-current-amount");
+const correctionReducibleAmount = $("#correction-reducible-amount");
+const correctionCorrectTotal = $("#correction-correct-total");
+const correctionDelta = $("#correction-delta");
+const correctionBalanceAfter = $("#correction-balance-after");
+const correctionReason = $("#correction-reason");
+const rechargeCorrectionMessage = $("#recharge-correction-message");
 
 const cashRefundModal = $("#cash-refund-modal");
 const cashRefundForm = $("#cash-refund-form");
@@ -134,6 +153,8 @@ let currentBadge = null;
 let selectedControlCustomer = null;
 let freeTicketPresets = [];
 let selectedFreeTicketPreset = null;
+let manualRechargeRows = [];
+let selectedManualRecharge = null;
 
 function formatEuro(cents) {
   return new Intl.NumberFormat(APP_CONFIG.locale, {
@@ -314,6 +335,10 @@ function renderOverview(data, stripeSummary = {}, controlSummary = {}) {
     formatEuro(controlSummary.cash_refund_cents);
   cashRefundCount.textContent =
     `${formatNumber(controlSummary.cash_refund_count)} operazioni`;
+  totalManualCorrections.textContent =
+    formatEuro(controlSummary.manual_correction_net_cents);
+  manualCorrectionCount.textContent =
+    `${formatNumber(controlSummary.manual_correction_count)} operazioni`;
 
   rechargeCount.textContent = `${formatNumber(totals.recharge_count)} ricariche`;
   paymentCount.textContent = `${formatNumber(totals.payment_count)} pagamenti`;
@@ -755,6 +780,9 @@ function renderCustomers(rows) {
             <button class="table-action" type="button" data-customer-action="password" data-id="${escapeHtml(row.user_id)}">
               Nuova password
             </button>
+            <button class="table-action" type="button" data-customer-action="correct-recharge" data-id="${escapeHtml(row.user_id)}" ${row.deleted_at ? "disabled" : ""}>
+              Correggi ricarica
+            </button>
             <button class="table-action" type="button" data-customer-action="refund" data-id="${escapeHtml(row.user_id)}" ${Number(row.refundable_cash_cents || 0) < 200 || row.deleted_at ? "disabled" : ""}>
               Rimborso contanti
             </button>
@@ -782,6 +810,8 @@ function renderCustomers(rows) {
         showBadge(row);
       } else if (button.dataset.customerAction === "password") {
         await resetPassword(row.user_id, row.auth_email, button, true);
+      } else if (button.dataset.customerAction === "correct-recharge") {
+        await openRechargeCorrectionModal(row);
       } else if (button.dataset.customerAction === "refund") {
         openCashRefundModal(row);
       } else if (button.dataset.customerAction === "gift") {
@@ -973,6 +1003,312 @@ async function toggleWallet(row, button) {
 function initialsForCustomer(row) {
   return `${String(row.first_name || "").slice(0, 1)}${String(row.last_name || "").slice(0, 1)}`.toUpperCase() || "ID";
 }
+
+
+function paymentMethodLabel(method) {
+  return {
+    contanti: "Contanti",
+    pos: "POS",
+    stripe: "Stripe",
+    omaggio: "Omaggio"
+  }[method] || method || "—";
+}
+
+async function openRechargeCorrectionModal(row) {
+  selectedControlCustomer = row;
+  selectedManualRecharge = null;
+  manualRechargeRows = [];
+  rechargeCorrectionForm.classList.add("is-hidden");
+  clearMessage(rechargeCorrectionMessage);
+
+  rechargeCorrectionInitials.textContent =
+    initialsForCustomer(row);
+  rechargeCorrectionCustomer.textContent =
+    `${row.first_name} ${row.last_name}`;
+
+  manualRechargeList.innerHTML = `
+    <div class="empty-state">
+      <strong>Caricamento ricariche…</strong>
+    </div>
+  `;
+
+  openModal(rechargeCorrectionModal);
+
+  const { data, error } = await supabaseClient.rpc(
+    "admin_list_manual_recharges",
+    {
+      p_user_id: row.user_id,
+      p_limit: 50
+    }
+  );
+
+  if (error) {
+    manualRechargeList.innerHTML = `
+      <div class="empty-state">
+        <strong>Impossibile caricare le ricariche</strong>
+        <span>${escapeHtml(readableError(error))}</span>
+      </div>
+    `;
+    return;
+  }
+
+  manualRechargeRows = data || [];
+  renderManualRechargeList();
+}
+
+function renderManualRechargeList() {
+  manualRechargeList.innerHTML = manualRechargeRows.length
+    ? manualRechargeRows.map((row) => `
+      <button
+        class="manual-recharge-item"
+        type="button"
+        data-manual-recharge-id="${escapeHtml(row.transaction_id)}"
+      >
+        <div>
+          <strong>${escapeHtml(formatDateTime(row.created_at))}</strong>
+          <span>
+            ${escapeHtml(row.position_name || "Cassa")}
+            ${row.position_code ? ` · ${escapeHtml(row.position_code)}` : ""}
+          </span>
+          <small>
+            Operatore: ${escapeHtml(row.operator_label || "—")}
+          </small>
+        </div>
+        <div>
+          <span class="method-pill method-pill--${escapeHtml(row.payment_method)}">
+            ${escapeHtml(paymentMethodLabel(row.payment_method))}
+          </span>
+          <strong>${formatEuro(row.current_recorded_amount_cents)}</strong>
+          <small>
+            Iniziale ${formatEuro(row.original_amount_cents)}
+            ${Number(row.correction_count || 0) > 0
+              ? ` · ${formatNumber(row.correction_count)} correzioni`
+              : ""}
+          </small>
+        </div>
+      </button>
+    `).join("")
+    : `
+      <div class="empty-state">
+        <strong>Nessuna ricarica manuale correggibile</strong>
+        <span>Le ricariche Stripe e i ticket gratuiti non possono essere modificati da questa funzione.</span>
+      </div>
+    `;
+
+  $$("[data-manual-recharge-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const row = manualRechargeRows.find(
+        (item) =>
+          item.transaction_id ===
+          button.dataset.manualRechargeId
+      );
+
+      if (!row) return;
+      selectManualRecharge(row, button);
+    });
+  });
+}
+
+function selectManualRecharge(row, selectedButton) {
+  selectedManualRecharge = row;
+  clearMessage(rechargeCorrectionMessage);
+
+  $$("[data-manual-recharge-id]").forEach((button) => {
+    button.classList.toggle(
+      "is-active",
+      button === selectedButton
+    );
+  });
+
+  correctionSelectedDate.textContent =
+    formatDateTime(row.created_at);
+  correctionSelectedPosition.textContent =
+    `${row.position_name || "Cassa"}${row.position_code ? ` · ${row.position_code}` : ""}`;
+  correctionSelectedMethod.textContent =
+    paymentMethodLabel(row.payment_method);
+  correctionOriginalAmount.textContent =
+    formatEuro(row.original_amount_cents);
+  correctionCurrentAmount.textContent =
+    formatEuro(row.current_recorded_amount_cents);
+  correctionReducibleAmount.textContent =
+    formatEuro(row.reducible_credit_cents);
+
+  correctionCorrectTotal.value =
+    Number(row.current_recorded_amount_cents || 0) / 100;
+  correctionReason.value = "";
+  rechargeCorrectionForm.classList.remove("is-hidden");
+  updateRechargeCorrectionPreview();
+
+  setTimeout(() => correctionCorrectTotal.focus(), 50);
+}
+
+function updateRechargeCorrectionPreview() {
+  if (!selectedManualRecharge || !selectedControlCustomer) {
+    correctionDelta.textContent = "0,00 €";
+    correctionBalanceAfter.textContent = "—";
+    return;
+  }
+
+  const correctTotalCents =
+    Math.round(Number(correctionCorrectTotal.value || 0) * 100);
+  const currentAmount =
+    Number(selectedManualRecharge.current_recorded_amount_cents || 0);
+  const delta = correctTotalCents - currentAmount;
+  const balanceAfter =
+    Number(selectedControlCustomer.balance_cents || 0) + delta;
+
+  correctionDelta.textContent =
+    `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${formatEuro(Math.abs(delta))}`;
+  correctionDelta.classList.toggle("amount-positive", delta > 0);
+  correctionDelta.classList.toggle("amount-negative", delta < 0);
+  correctionBalanceAfter.textContent = formatEuro(balanceAfter);
+
+  const excessiveReduction =
+    delta < 0 &&
+    Math.abs(delta) >
+      Number(selectedManualRecharge.reducible_credit_cents || 0);
+
+  correctionReducibleAmount.classList.toggle(
+    "is-alert",
+    excessiveReduction
+  );
+}
+
+correctionCorrectTotal?.addEventListener(
+  "input",
+  updateRechargeCorrectionPreview
+);
+
+$$("[data-close-recharge-correction]").forEach((element) => {
+  element.addEventListener("click", () => {
+    closeModal(rechargeCorrectionModal);
+  });
+});
+
+rechargeCorrectionForm?.addEventListener(
+  "submit",
+  async (event) => {
+    event.preventDefault();
+    clearMessage(rechargeCorrectionMessage);
+
+    if (!selectedManualRecharge ||
+        !selectedControlCustomer) {
+      return;
+    }
+
+    const euroValue = Number(correctionCorrectTotal.value);
+    const correctedTotalCents = Math.round(euroValue * 100);
+    const currentAmount =
+      Number(selectedManualRecharge.current_recorded_amount_cents || 0);
+    const delta = correctedTotalCents - currentAmount;
+    const reducible =
+      Number(selectedManualRecharge.reducible_credit_cents || 0);
+
+    if (
+      !Number.isFinite(euroValue) ||
+      correctedTotalCents < 0 ||
+      correctedTotalCents > 50000 ||
+      correctedTotalCents % APP_CONFIG.valoreDivinoCentesimi !== 0
+    ) {
+      showMessage(
+        rechargeCorrectionMessage,
+        "Inserisci un importo da 0 € a 500 €, multiplo di 2 €.",
+        "error"
+      );
+      return;
+    }
+
+    if (delta === 0) {
+      showMessage(
+        rechargeCorrectionMessage,
+        "L’importo inserito è già quello registrato.",
+        "error"
+      );
+      return;
+    }
+
+    if (delta < 0 && Math.abs(delta) > reducible) {
+      showMessage(
+        rechargeCorrectionMessage,
+        `Una parte del credito è già stata utilizzata. Puoi sottrarre al massimo ${formatEuro(reducible)} da questa ricarica.`,
+        "error"
+      );
+      return;
+    }
+
+    if (!correctionReason.value.trim()) {
+      showMessage(
+        rechargeCorrectionMessage,
+        "Inserisci la motivazione della correzione.",
+        "error"
+      );
+      return;
+    }
+
+    const actionText = delta < 0
+      ? `sottrarre ${formatEuro(Math.abs(delta))}`
+      : `aggiungere ${formatEuro(delta)}`;
+
+    const confirmed = window.confirm(
+      `Confermi di ${actionText} al saldo di ${selectedControlCustomer.first_name} ${selectedControlCustomer.last_name}?\n\nLa ricarica originale resterà nello storico e verrà creato un nuovo movimento di correzione.`
+    );
+
+    if (!confirmed) return;
+
+    const submitButton =
+      rechargeCorrectionForm.querySelector(
+        'button[type="submit"]'
+      );
+
+    setButtonLoading(
+      submitButton,
+      true,
+      "Registrazione…"
+    );
+
+    const { data, error } = await supabaseClient.rpc(
+      "admin_correct_manual_recharge",
+      {
+        p_original_transaction_id:
+          selectedManualRecharge.transaction_id,
+        p_corrected_total_cents:
+          correctedTotalCents,
+        p_idempotency_key:
+          crypto.randomUUID(),
+        p_reason:
+          correctionReason.value.trim()
+      }
+    );
+
+    setButtonLoading(submitButton, false);
+
+    if (error) {
+      showMessage(
+        rechargeCorrectionMessage,
+        readableError(error),
+        "error"
+      );
+      return;
+    }
+
+    closeModal(rechargeCorrectionModal);
+
+    const signedDelta =
+      Number(data.signed_delta_cents || 0);
+
+    showMessage(
+      customersMessage,
+      `Correzione registrata: ${signedDelta < 0 ? "sottratti" : "aggiunti"} ${formatEuro(Math.abs(signedDelta))}.`,
+      "success"
+    );
+
+    await Promise.all([
+      loadCustomers(customerQuery.value),
+      loadDashboard(),
+      loadTransactions(100)
+    ]);
+  }
+);
 
 function openCashRefundModal(row) {
   selectedControlCustomer = row;
@@ -1614,6 +1950,13 @@ downloadCredentialsModalButton.addEventListener("click", downloadCredentials);
 
 function transactionTypeLabel(row) {
   if (
+    row.type === "rettifica" &&
+    row.metadata?.operation === "manual_recharge_correction"
+  ) {
+    return "Correzione ricarica";
+  }
+
+  if (
     row.type === "storno" &&
     row.payment_method === "contanti"
   ) {
@@ -1637,12 +1980,25 @@ function transactionTypeLabel(row) {
 
 function isNegativeTransaction(row) {
   return (
-    row.type === "pagamento" ||
-    (
-      row.type === "storno" &&
-      row.payment_method === "contanti"
-    )
+    Number(row.balance_after_cents) <
+    Number(row.balance_before_cents)
   );
+}
+
+function transactionDetail(row) {
+  if (
+    row.type === "rettifica" &&
+    row.metadata?.operation === "manual_recharge_correction"
+  ) {
+    const previous =
+      Number(row.metadata.previous_recorded_amount_cents || 0);
+    const corrected =
+      Number(row.metadata.corrected_total_cents || 0);
+
+    return `Ricarica ${formatEuro(previous)} → ${formatEuro(corrected)}${row.note ? ` · ${row.note}` : ""}`;
+  }
+
+  return row.note || "—";
 }
 
 function renderTransactions(rows) {
@@ -1657,14 +2013,15 @@ function renderTransactions(rows) {
           <small>${escapeHtml(row.position_code || "")}</small>
         </td>
         <td>${escapeHtml(row.operator_label || "—")}</td>
-        <td>${escapeHtml(row.payment_method || "—")}</td>
+        <td>${escapeHtml(paymentMethodLabel(row.payment_method))}</td>
+        <td class="transaction-detail">${escapeHtml(transactionDetail(row))}</td>
         <td class="${isNegativeTransaction(row) ? "amount-negative" : "amount-positive"}">
           ${isNegativeTransaction(row) ? "−" : "+"}${formatEuro(row.amount_cents)}
         </td>
         <td>${formatEuro(row.balance_after_cents)}</td>
       </tr>
     `).join("")
-    : `<tr><td colspan="8">Nessun movimento nel periodo.</td></tr>`;
+    : `<tr><td colspan="9">Nessun movimento nel periodo.</td></tr>`;
 }
 
 async function loadTransactions(limit = 100) {
@@ -1677,7 +2034,7 @@ async function loadTransactions(limit = 100) {
   });
 
   if (error) {
-    transactionList.innerHTML = `<tr><td colspan="8">Impossibile caricare i movimenti.</td></tr>`;
+    transactionList.innerHTML = `<tr><td colspan="9">Impossibile caricare i movimenti.</td></tr>`;
     return;
   }
 
@@ -1713,6 +2070,7 @@ exportTransactionsButton.addEventListener("click", async () => {
         "Codice postazione",
         "Operatore",
         "Metodo",
+        "Dettaglio",
         "Importo euro",
         "Saldo prima euro",
         "Saldo dopo euro",
@@ -1725,8 +2083,10 @@ exportTransactionsButton.addEventListener("click", async () => {
         row.position_name || "",
         row.position_code || "",
         row.operator_label || "",
-        row.payment_method || "",
-        (Number(row.amount_cents || 0) / 100).toFixed(2),
+        paymentMethodLabel(row.payment_method),
+        transactionDetail(row),
+        (isNegativeTransaction(row) ? -1 : 1) *
+          (Number(row.amount_cents || 0) / 100).toFixed(2),
         (Number(row.balance_before_cents || 0) / 100).toFixed(2),
         (Number(row.balance_after_cents || 0) / 100).toFixed(2),
         row.transaction_id

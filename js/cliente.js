@@ -35,6 +35,15 @@ function formatDivini(cents) {
   }).format(value);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function showPageError(text) {
   if (!pageMessage) return;
   pageMessage.textContent = text;
@@ -68,6 +77,13 @@ function setStripeButtonLoading(loading) {
 }
 
 function transactionLabel(row) {
+  if (
+    row.type === "rettifica" &&
+    row.metadata?.operation === "manual_recharge_correction"
+  ) {
+    return "Correzione ricarica";
+  }
+
   if (row.type === "pagamento") {
     return row.stand?.name
       ? `Pagamento · ${row.stand.name}`
@@ -109,13 +125,9 @@ function renderTransactions(rows) {
   }
 
   movements.innerHTML = rows.map((row) => {
-    const positive = !(
-      row.type === "pagamento" ||
-      (
-        row.type === "storno" &&
-        row.payment_method === "contanti"
-      )
-    );
+    const positive =
+      Number(row.balance_after_cents) >=
+      Number(row.balance_before_cents);
     const sign = positive ? "+" : "−";
     const date = new Intl.DateTimeFormat(APP_CONFIG.locale, {
       day: "2-digit",
@@ -128,7 +140,7 @@ function renderTransactions(rows) {
       <div class="movement">
         <div>
           <strong>${transactionLabel(row)}</strong>
-          <span>${date}</span>
+          <span>${date}${row.note ? ` · ${escapeHtml(row.note)}` : ""}</span>
         </div>
         <b class="${positive ? "positive" : ""}">
           ${sign} ${formatEuro(row.amount_cents)}
@@ -232,7 +244,7 @@ async function loadDashboard() {
 
   const { data: transactionRows, error: transactionError } = await supabaseClient
     .from("transactions")
-    .select("id, type, amount_cents, payment_method, created_at, stand:stands(name)")
+    .select("id, type, amount_cents, payment_method, balance_before_cents, balance_after_cents, note, metadata, created_at, stand:stands(name)")
     .eq("wallet_id", wallet.id)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -250,7 +262,7 @@ async function loadDashboard() {
 
     const retry = await supabaseClient
       .from("transactions")
-      .select("id, type, amount_cents, payment_method, created_at, stand:stands(name)")
+      .select("id, type, amount_cents, payment_method, balance_before_cents, balance_after_cents, note, metadata, created_at, stand:stands(name)")
       .eq("wallet_id", walletWithId.id)
       .order("created_at", { ascending: false })
       .limit(10);
