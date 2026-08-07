@@ -116,6 +116,12 @@
         <strong id="total-cash-refunds">—</strong>
         <small id="cash-refund-count">— operazioni</small>
       </article>
+
+      <article class="admin-stat-card">
+        <span>Correzioni ricariche</span>
+        <strong id="total-manual-corrections">—</strong>
+        <small id="manual-correction-count">— operazioni</small>
+      </article>
     </section>
 
     <section class="admin-grid admin-grid--rankings">
@@ -391,12 +397,13 @@
               <th>Postazione</th>
               <th>Operatore</th>
               <th>Metodo</th>
+              <th>Dettaglio</th>
               <th>Importo</th>
               <th>Saldo dopo</th>
             </tr>
           </thead>
           <tbody id="transaction-list">
-            <tr><td colspan="8">Caricamento…</td></tr>
+            <tr><td colspan="9">Caricamento…</td></tr>
           </tbody>
         </table>
       </div>
@@ -612,6 +619,99 @@
     </section>
   </div>
 
+
+
+  <div class="payment-modal is-hidden" id="recharge-correction-modal" role="dialog" aria-modal="true" aria-labelledby="recharge-correction-title">
+    <div class="payment-modal__backdrop" data-close-recharge-correction></div>
+    <section class="payment-modal__card payment-modal__card--wide">
+      <span class="eyebrow">Rettifica amministrativa</span>
+      <h2 id="recharge-correction-title">Correggi una ricarica manuale</h2>
+
+      <div class="modal-customer">
+        <div class="customer-avatar" id="recharge-correction-initials">ID</div>
+        <div>
+          <strong id="recharge-correction-customer">—</strong>
+          <span>La ricarica originale resterà nello storico</span>
+        </div>
+      </div>
+
+      <div id="manual-recharge-list" class="manual-recharge-list">
+        <div class="empty-state"><strong>Caricamento ricariche…</strong></div>
+      </div>
+
+      <form id="recharge-correction-form" class="is-hidden">
+        <section class="selected-recharge-summary">
+          <div>
+            <span>Ricarica selezionata</span>
+            <strong id="correction-selected-date">—</strong>
+            <small id="correction-selected-position">—</small>
+          </div>
+          <div>
+            <span>Metodo</span>
+            <strong id="correction-selected-method">—</strong>
+          </div>
+          <div>
+            <span>Importo iniziale</span>
+            <strong id="correction-original-amount">—</strong>
+          </div>
+          <div>
+            <span>Importo registrato ora</span>
+            <strong id="correction-current-amount">—</strong>
+          </div>
+          <div>
+            <span>Credito ancora riducibile</span>
+            <strong id="correction-reducible-amount">—</strong>
+          </div>
+        </section>
+
+        <label for="correction-correct-total">
+          Importo totale che doveva essere caricato
+        </label>
+        <div class="euro-input">
+          <input
+            id="correction-correct-total"
+            type="number"
+            min="0"
+            max="500"
+            step="2"
+            inputmode="decimal"
+            required
+          >
+          <span>€</span>
+        </div>
+        <p class="field-help">
+          Esempio: sono stati caricati 50 €, ma il cliente ne aveva chiesti 20 €. Inserisci <strong>20</strong>.
+        </p>
+
+        <div class="correction-preview">
+          <div>
+            <span>Differenza da applicare</span>
+            <strong id="correction-delta">0,00 €</strong>
+          </div>
+          <div>
+            <span>Saldo cliente dopo la correzione</span>
+            <strong id="correction-balance-after">—</strong>
+          </div>
+        </div>
+
+        <label for="correction-reason">Motivazione obbligatoria</label>
+        <input
+          id="correction-reason"
+          type="text"
+          maxlength="160"
+          placeholder="Es. caricati 50 € invece di 20 €"
+          required
+        >
+
+        <div id="recharge-correction-message" class="form-message" aria-live="polite"></div>
+
+        <div class="modal-actions">
+          <button class="button button--secondary" type="button" data-close-recharge-correction>Annulla</button>
+          <button class="button button--primary" type="submit">Registra correzione</button>
+        </div>
+      </form>
+    </section>
+  </div>
 
   <div class="payment-modal is-hidden" id="cash-refund-modal" role="dialog" aria-modal="true" aria-labelledby="cash-refund-title">
     <div class="payment-modal__backdrop" data-close-cash-refund></div>

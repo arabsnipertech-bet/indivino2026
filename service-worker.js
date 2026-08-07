@@ -1,4 +1,4 @@
-const CACHE_NAME = "indivino-images-v11";
+const CACHE_NAME = "indivino-images-v12";
 const IMAGE_ASSETS = [
   "/images/logo-proloco-solofra.png",
   "/images/logo-indivino-2026.png",

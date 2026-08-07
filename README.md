@@ -1,19 +1,15 @@
-# I Divini Digitali — Step 9
+# I Divini Digitali — Step 10
 
-Aggiunge:
+Aggiunge la correzione amministrativa delle ricariche manuali:
 
-- registrazione cliente immediata;
-- accesso operatori con codice semplice;
-- creazione responsabile direttamente dalla cassa o dallo stand;
-- disattivazione automatica del precedente responsabile;
-- QR e pagina guidata per installare la PWA.
+- contanti e POS;
+- aumento o riduzione;
+- ricarica originale conservata;
+- rettifica collegata e motivata;
+- lotti di credito corretti;
+- dashboard e classifiche al netto delle rettifiche;
+- Stripe e omaggi esclusi.
 
 Eseguire:
 
-`sql/13_operator_access_and_install.sql`
-
-Poi pubblicare:
-
-`supabase/functions/admin-staff/index.ts`
-
-Infine disattivare `Confirm email` nelle impostazioni Auth di Supabase.
+`sql/14_manual_recharge_corrections.sql`
