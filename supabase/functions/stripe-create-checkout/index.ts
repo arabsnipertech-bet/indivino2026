@@ -1,35 +1,26 @@
-import Stripe from "npm:stripe@^22";
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json"
+};
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-const siteUrl = (
-  Deno.env.get("SITE_URL") ||
-  "https://indivino2026.arabsnipertech.workers.dev"
-).replace(/\/+$/, "");
 
-if (!supabaseUrl || !serviceRoleKey || !stripeSecretKey) {
-  throw new Error("Configurazione server Stripe incompleta.");
+if (!supabaseUrl || !serviceRoleKey) {
+  throw new Error("Variabili Supabase mancanti.");
 }
 
-const stripe = new Stripe(stripeSecretKey);
 const adminClient = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
   }
 });
-
-const allowedAmounts = new Set([1000, 2000, 3000, 5000]);
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": siteUrl,
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json"
-};
 
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -38,18 +29,77 @@ function response(body: unknown, status = 200) {
   });
 }
 
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
+function normalizeEmail(value: unknown) {
+  return String(value || "").trim().toLowerCase();
 }
 
-async function requireCustomer(req: Request) {
+function generatePassword(length = 14) {
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const symbols = "!@#$%";
+  const all = uppercase + lowercase + numbers + symbols;
+
+  const randomChar = (chars: string) => {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return chars[array[0] % chars.length];
+  };
+
+  const chars = [
+    randomChar(uppercase),
+    randomChar(lowercase),
+    randomChar(numbers),
+    randomChar(symbols)
+  ];
+
+  while (chars.length < length) {
+    chars.push(randomChar(all));
+  }
+
+  for (let index = chars.length - 1; index > 0; index -= 1) {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    const swapIndex = array[0] % (index + 1);
+    [chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]];
+  }
+
+  return chars.join("");
+}
+
+
+function normalizeAccessCode(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "");
+}
+
+function validateAccessCode(value: string) {
+  if (!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(value)) {
+    throw new Error(
+      "Il codice accesso deve contenere 3–40 caratteri: lettere minuscole, numeri, punto, trattino o underscore."
+    );
+  }
+
+  if (value.includes("@")) {
+    throw new Error(
+      "Inserisci soltanto il codice accesso, senza @ e senza dominio."
+    );
+  }
+}
+
+function generateBadgeCode() {
+  const random = crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
+  return `IV26-${random}`;
+}
+
+async function requireAdmin(req: Request) {
   const authorization = req.headers.get("Authorization") || "";
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
 
   if (!token) {
-    throw new Error("Sessione cliente mancante.");
+    throw new Error("Sessione amministratore mancante.");
   }
 
   const {
@@ -58,52 +108,668 @@ async function requireCustomer(req: Request) {
   } = await adminClient.auth.getUser(token);
 
   if (userError || !user) {
-    throw new Error("Sessione cliente non valida.");
+    throw new Error("Sessione non valida.");
   }
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, first_name, last_name, email, contact_email, role, active, deleted_at")
+    .select("role, active")
     .eq("id", user.id)
-    .maybeSingle();
+    .single();
 
-  if (profileError) {
-    throw new Error(
-      `Errore lettura profilo cliente: ${profileError.message}`
-    );
+  if (
+    profileError ||
+    !profile ||
+    profile.role !== "admin" ||
+    profile.active !== true
+  ) {
+    throw new Error("Permesso negato: amministratore richiesto.");
   }
 
-  if (!profile) {
-    throw new Error(
-      `Profilo non trovato per l’account ${user.email || user.id}.`
-    );
+  return user;
+}
+
+type PositionType = "cassa" | "stand";
+
+async function getPosition(type: PositionType, code: string) {
+  const table = type === "cassa" ? "cashier_stations" : "stands";
+
+  const { data, error } = await adminClient
+    .from(table)
+    .select("id, code, name, primary_operator_id")
+    .eq("code", code)
+    .eq("active", true)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Postazione ${code} non trovata.`);
+  }
+
+  return data;
+}
+
+async function findProfileByEmail(email: string) {
+  const { data, error } = await adminClient
+    .from("profiles")
+    .select("id, email, role, active")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function assignPosition(
+  userId: string,
+  type: PositionType,
+  positionId: string
+) {
+  if (type === "cassa") {
+    const { error } = await adminClient
+      .from("cashier_operators")
+      .upsert(
+        {
+          user_id: userId,
+          cashier_station_id: positionId,
+          active: true
+        },
+        { onConflict: "user_id" }
+      );
+
+    if (error) throw error;
+
+    await adminClient
+      .from("stand_operators")
+      .delete()
+      .eq("user_id", userId);
+  } else {
+    const { error } = await adminClient
+      .from("stand_operators")
+      .upsert(
+        {
+          user_id: userId,
+          stand_id: positionId,
+          active: true
+        },
+        { onConflict: "user_id" }
+      );
+
+    if (error) throw error;
+
+    await adminClient
+      .from("cashier_operators")
+      .delete()
+      .eq("user_id", userId);
+  }
+}
+
+async function ensureOperator(type: PositionType, number: number) {
+  if (!["cassa", "stand"].includes(type)) {
+    throw new Error("Tipo operatore non valido.");
+  }
+
+  if (!Number.isInteger(number)) {
+    throw new Error("Numero postazione non valido.");
+  }
+
+  if (type === "cassa" && (number < 2 || number > 20)) {
+    throw new Error("Le casse generabili sono Cassa 02–20.");
+  }
+
+  if (type === "stand" && (number < 1 || number > 15)) {
+    throw new Error("Gli stand generabili sono Stand 01–15.");
+  }
+
+  const padded = String(number).padStart(2, "0");
+  const code = type === "cassa" ? `CASSA${padded}` : `STAND${padded}`;
+  const email =
+    type === "cassa"
+      ? `cassa${padded}@operatori.indivino2026.it`
+      : `stand${padded}@operatori.indivino2026.it`;
+
+  const firstName = type === "cassa" ? "Cassa" : "Stand";
+  const lastName = padded;
+  const position = await getPosition(type, code);
+
+  const profile = await findProfileByEmail(email);
+
+  if (profile) {
+    const { error: updateError } = await adminClient
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        role: type,
+        active: true,
+        customer_source: "staff",
+        contact_email: null,
+        badge_code: null
+      })
+      .eq("id", profile.id);
+
+    if (updateError) throw updateError;
+
+    await assignPosition(profile.id, type, position.id);
+
+    return {
+      created: false,
+      email,
+      password: null,
+      role: type,
+      position_code: code,
+      position_name: position.name
+    };
+  }
+
+  const password = generatePassword();
+
+  const { data: created, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nome: firstName,
+        cognome: lastName,
+        account_type: "staff"
+      }
+    });
+
+  if (createError || !created.user) {
+    throw createError || new Error(`Creazione fallita per ${email}.`);
+  }
+
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      role: type,
+      active: true,
+      customer_source: "staff",
+      contact_email: null,
+      badge_code: null
+    })
+    .eq("id", created.user.id);
+
+  if (profileError) throw profileError;
+
+  await assignPosition(created.user.id, type, position.id);
+
+  return {
+    created: true,
+    email,
+    password,
+    role: type,
+    position_code: code,
+    position_name: position.name
+  };
+}
+
+async function createCustomer(body: Record<string, unknown>) {
+  const firstName = String(body.first_name || "").trim();
+  const lastName = String(body.last_name || "").trim();
+  const contactEmail = normalizeEmail(body.email);
+
+  if (!firstName || !lastName) {
+    throw new Error("Nome e cognome sono obbligatori.");
+  }
+
+  if (firstName.length > 80 || lastName.length > 80) {
+    throw new Error("Nome o cognome troppo lungo.");
+  }
+
+  if (contactEmail) {
+    const { data: duplicate, error: duplicateError } = await adminClient
+      .from("profiles")
+      .select("id, first_name, last_name, contact_email, email")
+      .or(`contact_email.eq.${contactEmail},email.eq.${contactEmail}`)
+      .maybeSingle();
+
+    if (duplicateError) throw duplicateError;
+
+    if (duplicate) {
+      throw new Error(
+        `Email già presente per ${duplicate.first_name} ${duplicate.last_name}. Cerca il cliente esistente.`
+      );
+    }
+  }
+
+  let badgeCode = generateBadgeCode();
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const { data: existingCode, error } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("badge_code", badgeCode)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!existingCode) break;
+
+    badgeCode = generateBadgeCode();
+  }
+
+  const authEmail = contactEmail ||
+    `badge.${badgeCode.toLowerCase().replaceAll("-", "")}@badge.indivino2026.local`;
+  const password = generatePassword();
+
+  const { data: created, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email: authEmail,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nome: firstName,
+        cognome: lastName,
+        account_type: "cliente",
+        customer_source: "badge",
+        contact_email: contactEmail || ""
+      }
+    });
+
+  if (createError || !created.user) {
+    throw createError || new Error("Creazione cliente non riuscita.");
+  }
+
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      role: "cliente",
+      active: true,
+      contact_email: contactEmail || null,
+      customer_source: "badge",
+      badge_code: badgeCode
+    })
+    .eq("id", created.user.id);
+
+  if (profileError) throw profileError;
+
+  const { data: wallet, error: walletError } = await adminClient
+    .from("wallets")
+    .select("id, qr_token, balance_cents, blocked")
+    .eq("user_id", created.user.id)
+    .single();
+
+  if (walletError || !wallet) {
+    throw walletError || new Error("Portafoglio non creato.");
+  }
+
+  return {
+    customer: {
+      user_id: created.user.id,
+      first_name: firstName,
+      last_name: lastName,
+      auth_email: authEmail,
+      contact_email: contactEmail || null,
+      customer_source: "badge",
+      badge_code: badgeCode,
+      wallet_id: wallet.id,
+      qr_token: wallet.qr_token,
+      balance_cents: wallet.balance_cents,
+      blocked: wallet.blocked,
+      active: true,
+      created_at: new Date().toISOString(),
+      password
+    }
+  };
+}
+
+async function resetPassword(userId: string) {
+  if (!userId) {
+    throw new Error("Identificativo utente mancante.");
+  }
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select(`
+      id,
+      email,
+      role,
+      first_name,
+      last_name,
+      cashier_operators (
+        cashier_stations (
+          name
+        )
+      ),
+      stand_operators (
+        stands (
+          name
+        )
+      )
+    `)
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error("Utente non trovato.");
+  }
+
+  const password = generatePassword();
+
+  const { error } = await adminClient.auth.admin.updateUserById(
+    userId,
+    { password }
+  );
+
+  if (error) throw error;
+
+  const cashierName =
+    profile.cashier_operators?.[0]?.cashier_stations?.name;
+  const standName =
+    profile.stand_operators?.[0]?.stands?.name;
+
+  return {
+    email: profile.email,
+    password,
+    role: profile.role,
+    position_name:
+      cashierName ||
+      standName ||
+      `${profile.first_name} ${profile.last_name}`
+  };
+}
+
+
+async function deleteCustomer(userId: string) {
+  if (!userId) {
+    throw new Error("Identificativo cliente mancante.");
+  }
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, role, first_name, last_name, active, deleted_at")
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error("Cliente non trovato.");
   }
 
   if (profile.role !== "cliente") {
-    throw new Error(
-      `Ruolo account non valido: risulta “${profile.role}” invece di “cliente”.`
-    );
+    throw new Error("È possibile eliminare soltanto clienti.");
   }
 
-  if (profile.active !== true || profile.deleted_at) {
-    throw new Error("Account cliente presente ma disattivato.");
+  if (profile.deleted_at) {
+    return {
+      mode: "anonymized",
+      already_deleted: true
+    };
   }
 
   const { data: wallet, error: walletError } = await adminClient
     .from("wallets")
-    .select("id, blocked")
-    .eq("user_id", user.id)
+    .select("id, balance_cents")
+    .eq("user_id", userId)
     .single();
 
   if (walletError || !wallet) {
-    throw new Error("Portafoglio non disponibile.");
+    throw new Error("Portafoglio cliente non trovato.");
   }
 
-  if (wallet.blocked) {
-    throw new Error("Portafoglio bloccato.");
+  if (Number(wallet.balance_cents) !== 0) {
+    throw new Error(
+      "Il cliente non può essere eliminato finché il saldo non è zero."
+    );
   }
 
-  return { user, profile, wallet };
+  const [
+    transactionResult,
+    stripeResult
+  ] = await Promise.all([
+    adminClient
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_id", wallet.id),
+    adminClient
+      .from("stripe_payments")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_id", wallet.id)
+  ]);
+
+  if (transactionResult.error) {
+    throw transactionResult.error;
+  }
+
+  if (stripeResult.error) {
+    throw stripeResult.error;
+  }
+
+  const hasFinancialHistory =
+    Number(transactionResult.count || 0) > 0 ||
+    Number(stripeResult.count || 0) > 0;
+
+  if (!hasFinancialHistory) {
+    const { error: deleteError } =
+      await adminClient.auth.admin.deleteUser(
+        userId,
+        false
+      );
+
+    if (deleteError) throw deleteError;
+
+    return {
+      mode: "deleted",
+      user_id: userId
+    };
+  }
+
+  const { error: anonymizeError } = await adminClient.rpc(
+    "admin_anonymize_customer",
+    {
+      p_user_id: userId
+    }
+  );
+
+  if (anonymizeError) throw anonymizeError;
+
+  const { error: softDeleteError } =
+    await adminClient.auth.admin.deleteUser(
+      userId,
+      true
+    );
+
+  if (softDeleteError) {
+    console.warn(
+      "Profilo anonimizzato, soft delete Auth non riuscita:",
+      softDeleteError
+    );
+  }
+
+  return {
+    mode: "anonymized",
+    user_id: userId
+  };
+}
+
+
+async function deactivateOtherPositionOperators(
+  type: PositionType,
+  positionId: string,
+  keepUserId: string
+) {
+  const table =
+    type === "cassa"
+      ? "cashier_operators"
+      : "stand_operators";
+
+  const foreignKey =
+    type === "cassa"
+      ? "cashier_station_id"
+      : "stand_id";
+
+  const { data: assigned, error: assignedError } =
+    await adminClient
+      .from(table)
+      .select("user_id")
+      .eq(foreignKey, positionId)
+      .neq("user_id", keepUserId);
+
+  if (assignedError) throw assignedError;
+
+  for (const item of assigned || []) {
+    const { data: profile, error: profileError } =
+      await adminClient
+        .from("profiles")
+        .select("role")
+        .eq("id", item.user_id)
+        .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    // L'amministratore resta sempre abilitato a CASSA01.
+    if (profile?.role === "admin") {
+      continue;
+    }
+
+    const { error: profileUpdateError } =
+      await adminClient
+        .from("profiles")
+        .update({ active: false })
+        .eq("id", item.user_id);
+
+    if (profileUpdateError) throw profileUpdateError;
+
+    const { error: assignmentUpdateError } =
+      await adminClient
+        .from(table)
+        .update({ active: false })
+        .eq("user_id", item.user_id);
+
+    if (assignmentUpdateError) {
+      throw assignmentUpdateError;
+    }
+  }
+}
+
+async function createPositionOperator(
+  body: Record<string, unknown>
+) {
+  const type = String(body.type || "") as PositionType;
+  const code = String(body.code || "").trim().toUpperCase();
+  const firstName = String(body.first_name || "").trim();
+  const lastName = String(body.last_name || "").trim();
+  const accessCode = normalizeAccessCode(body.access_code);
+  const suppliedPassword = String(body.password || "");
+
+  if (!["cassa", "stand"].includes(type)) {
+    throw new Error("Tipo postazione non valido.");
+  }
+
+  if (!firstName || !lastName) {
+    throw new Error("Nome e cognome del responsabile sono obbligatori.");
+  }
+
+  if (firstName.length > 80 || lastName.length > 80) {
+    throw new Error("Nome o cognome troppo lungo.");
+  }
+
+  validateAccessCode(accessCode);
+
+  if (
+    suppliedPassword &&
+    suppliedPassword.length < 8
+  ) {
+    throw new Error(
+      "La password scelta deve contenere almeno 8 caratteri."
+    );
+  }
+
+  const position = await getPosition(type, code);
+  const email = `${accessCode}@operatori.indivino2026.it`;
+
+  const { data: duplicate, error: duplicateError } =
+    await adminClient
+      .from("profiles")
+      .select("id, first_name, last_name, email, access_code")
+      .or(`access_code.eq.${accessCode},email.eq.${email}`)
+      .maybeSingle();
+
+  if (duplicateError) throw duplicateError;
+
+  if (duplicate) {
+    throw new Error(
+      `Il codice accesso “${accessCode}” è già utilizzato da ${duplicate.first_name} ${duplicate.last_name}.`
+    );
+  }
+
+  const password =
+    suppliedPassword || generatePassword();
+
+  const { data: created, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nome: firstName,
+        cognome: lastName,
+        account_type: "staff",
+        access_code: accessCode
+      }
+    });
+
+  if (createError || !created.user) {
+    throw createError ||
+      new Error("Creazione operatore non riuscita.");
+  }
+
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      role: type,
+      active: true,
+      customer_source: "staff",
+      contact_email: null,
+      badge_code: null,
+      access_code: accessCode
+    })
+    .eq("id", created.user.id);
+
+  if (profileError) throw profileError;
+
+  await assignPosition(
+    created.user.id,
+    type,
+    position.id
+  );
+
+  await deactivateOtherPositionOperators(
+    type,
+    position.id,
+    created.user.id
+  );
+
+  const responsibleName =
+    `${firstName} ${lastName}`.trim();
+
+  const { error: primaryError } = await adminClient.rpc(
+    "admin_set_primary_position_operator",
+    {
+      p_position_type: type,
+      p_code: code,
+      p_user_id: created.user.id,
+      p_responsible_name: responsibleName
+    }
+  );
+
+  if (primaryError) throw primaryError;
+
+  return {
+    created: true,
+    email,
+    access_code: accessCode,
+    password,
+    role: type,
+    position_code: code,
+    position_name: position.name,
+    responsible_name: responsibleName
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -116,150 +782,52 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const origin = req.headers.get("Origin");
-
-    if (origin && origin !== siteUrl) {
-      return response({ error: "Origine non autorizzata." }, 403);
-    }
-
-    const { user, profile, wallet } = await requireCustomer(req);
+    await requireAdmin(req);
     const body = await req.json();
+    const action = String(body?.action || "");
 
-    const amountCents = Number(body?.amount_cents);
-    const requestId = String(body?.request_id || "").trim();
-
-    if (!allowedAmounts.has(amountCents)) {
-      throw new Error("Importo non consentito.");
+    if (action === "health") {
+      return response({ ok: true });
     }
 
-    if (!isUuid(requestId)) {
-      throw new Error("Codice richiesta non valido.");
+    if (action === "ensure_operator") {
+      return response(
+        await ensureOperator(
+          String(body.type || "") as PositionType,
+          Number(body.number)
+        )
+      );
     }
 
-    const { data: existing, error: existingError } = await adminClient
-      .from("stripe_payments")
-      .select("checkout_url, status, user_id, amount_cents")
-      .eq("idempotency_key", requestId)
-      .maybeSingle();
-
-    if (existingError) throw existingError;
-
-    if (existing) {
-      if (
-        existing.user_id !== user.id ||
-        Number(existing.amount_cents) !== amountCents
-      ) {
-        throw new Error("Codice richiesta già utilizzato.");
-      }
-
-      if (existing.status === "pending" && existing.checkout_url) {
-        return response({
-          url: existing.checkout_url,
-          reused: true
-        });
-      }
-
-      throw new Error("Questa richiesta di pagamento è già conclusa.");
+    if (action === "create_customer") {
+      return response(await createCustomer(body));
     }
 
-    const divini = amountCents / 200;
-    const realEmail = String(
-      profile.contact_email || user.email || ""
-    ).trim();
-
-    const metadata = {
-      indivino_user_id: user.id,
-      indivino_wallet_id: wallet.id,
-      indivino_amount_cents: String(amountCents),
-      indivino_idempotency_key: requestId
-    };
-
-    const sessionParameters: Stripe.Checkout.SessionCreateParams = {
-      mode: "payment",
-      locale: "it",
-      client_reference_id: user.id,
-      success_url:
-        `${siteUrl}/cliente?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/cliente?stripe=cancelled`,
-      payment_method_types: ["card"],
-      metadata,
-      payment_intent_data: {
-        description: `Ricarica portafoglio Indivino 2026 - ${divini} Divini`,
-        metadata
-      },
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            unit_amount: amountCents,
-            product_data: {
-              name: `Ricarica Indivino 2026 - ${divini} Divini`,
-              description:
-                "Credito digitale utilizzabile durante l’evento Indivino 2026"
-            }
-          },
-          quantity: 1
-        }
-      ]
-    };
-
-    if (
-      realEmail &&
-      !realEmail.endsWith("@badge.indivino2026.local")
-    ) {
-      sessionParameters.customer_email = realEmail;
-      sessionParameters.payment_intent_data = {
-        ...sessionParameters.payment_intent_data,
-        receipt_email: realEmail
-      };
+    if (action === "reset_password") {
+      return response(await resetPassword(String(body?.user_id || "")));
     }
 
-    const session = await stripe.checkout.sessions.create(
-      sessionParameters,
-      { idempotencyKey: requestId }
-    );
-
-    if (!session.url) {
-      throw new Error("Stripe non ha generato la pagina di pagamento.");
+    if (action === "delete_customer") {
+      return response(
+        await deleteCustomer(String(body?.user_id || ""))
+      );
     }
 
-    const { error: registerError } = await adminClient.rpc(
-      "stripe_register_checkout",
-      {
-        p_user_id: user.id,
-        p_wallet_id: wallet.id,
-        p_checkout_session_id: session.id,
-        p_checkout_url: session.url,
-        p_amount_cents: amountCents,
-        p_currency: "eur",
-        p_idempotency_key: requestId
-      }
-    );
-
-    if (registerError) {
-      try {
-        await stripe.checkout.sessions.expire(session.id);
-      } catch {
-        // La sessione scadrà comunque automaticamente.
-      }
-
-      throw registerError;
+    if (action === "create_position_operator") {
+      return response(
+        await createPositionOperator(body)
+      );
     }
 
-    return response({
-      url: session.url,
-      session_id: session.id,
-      amount_cents: amountCents
-    });
+    return response({ error: "Azione non riconosciuta." }, 400);
   } catch (error) {
-    console.error("stripe-create-checkout:", error);
+    console.error("admin-staff:", error);
 
     return response(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossibile creare il pagamento Stripe."
+        error: error instanceof Error
+          ? error.message
+          : "Errore inatteso."
       },
       400
     );
